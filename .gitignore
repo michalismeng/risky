@@ -1,0 +1,5 @@
+.stack-work/*
+verilog/*
+*.o
+*.hi
+*.cabal

@@ -1,0 +1,17 @@
+resolver: lts-12.16
+
+packages:
+- .
+- location:
+    git: https://github.com/clash-lang/clash-compiler.git
+    commit: 1258f3fe2c8c52ed2a52712720542c2b4952b928
+  subdirs:
+  - clash-lib
+  - clash-ghc
+  extra-dep: true
+  
+- location:
+    git: https://github.com/clash-lang/clash-prelude.git
+    commit: a1b29a228ea1456cee9c5d55ee1113df8d471d26
+  extra-dep: true
+  

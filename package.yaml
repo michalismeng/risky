@@ -1,0 +1,45 @@
+name:                riscy
+version:             0.1.0.0
+github:              "megis7/riscy"
+license:             BSD3
+author:              "Michalis Megisoglou"
+
+extra-source-files:
+- README.md
+
+description:         Please see the README on GitHub at <https://github.com/megis7/riscy#readme>
+
+ghc-options: -fplugin=GHC.TypeLits.Extra.Solver -fplugin=GHC.TypeLits.KnownNat.Solver -fplugin=GHC.TypeLits.Normalise
+
+default-extensions:
+- ScopedTypeVariables 
+- NoImplicitPrelude 
+- TypeOperators 
+- DataKinds 
+- FlexibleContexts 
+- TypeApplications 
+- BinaryLiterals 
+- GADTs
+- KindSignatures
+- TypeFamilies
+
+dependencies:
+- base >= 4.7 && < 5
+- deepseq
+- clash-lib
+- clash-ghc
+- clash-prelude
+- hspec
+- singletons
+- ghc-typelits-natnormalise
+- ghc-typelits-knownnat
+- ghc-typelits-extra
+
+library:
+  source-dirs: 
+  - src
+  exposed-modules:
+  - Core.ALU
+  - Core.Definitions
+  - Core.RegFile
+  - Core.Decode
