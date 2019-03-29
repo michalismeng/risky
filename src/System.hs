@@ -1,17 +1,8 @@
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE DeriveFunctor #-}
-{-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE MagicHash     #-}
-{-# LANGUAGE TypeOperators #-}
-
-{-# LANGUAGE Trustworthy #-}
-{-# LANGUAGE GADTs #-}
-
 module System where
 
-import Core.ALU
 import Core.RegFile
 import Core.Decode
+import Core.Execute
 import Core.Definitions
 import Data.Bool
 
@@ -25,3 +16,6 @@ topEntity = execute decE
         x = encodeInstruction $ Itype SRL (Register 1) (Register 2) 0b000000000001
         decD = decodeInstruction x
         decE = decodeInstructionE registers decD
+
+testLui = encodeInstruction $ Utype AUIPC (Register 2) 25
+testLuiDec = decodeInstruction testLui

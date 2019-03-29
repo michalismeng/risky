@@ -24,13 +24,15 @@ data Register = Register (Index XLEN)
               | PC                            
               deriving (Show, Eq)
 
-data Registers = Registers { 
-                            general :: Vec XLEN XTYPE, 
-                            pc :: XTYPE }       
-                            deriving Show
+data Registers = Registers {
+                             general :: Vec XLEN XTYPE, 
+                             pc :: XTYPE }       
+                             deriving Show
 
 data Opcode
-    = ADD
+    = LUI       -- uType
+    | AUIPC
+    | ADD       -- irType
     | SUB
     | SLT
     | SLTU
@@ -40,7 +42,7 @@ data Opcode
     | SL
     | SRA
     | SRL
-    | BEQ
+    | BEQ       -- bType
     | BNE
     | BLT
     | BLTU
@@ -53,6 +55,7 @@ data Instruction register
     = Branch    Opcode register register (BitVector 12)
     | Itype     Opcode register Register (BitVector 12)
     | Rtype     Opcode register register Register (BitVector 7)
+    | Utype     Opcode register (BitVector 20)
     | Load      Opcode register Register (BitVector 12)
     | Store     Opcode register register (BitVector 12)
     deriving (Show, Eq)
@@ -60,8 +63,7 @@ data Instruction register
 data InstructionE
     = BranchE       Opcode XSigned XSigned XSigned
     | ArithmeticE   Opcode XSigned XSigned Register
-    -- | LoadE      XOpcode2 register Register (BitVector 12)
-    -- | StoreE     XOpcode2 register register (BitVector 12)
+    | UtypeE        Opcode XSigned XSigned Register
     deriving (Show, Eq)
 
 type InstructionD = Instruction Register

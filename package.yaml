@@ -39,7 +39,7 @@ library:
   source-dirs: 
   - src
   exposed-modules:
-  - Core.ALU
   - Core.Definitions
   - Core.RegFile
   - Core.Decode
+  - Core.Execute

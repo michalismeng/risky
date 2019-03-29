@@ -1,0 +1,28 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "runi",
+            "type": "shell",
+            "command": "stack exec -- clashi src/System.hs -isrc -odir obj -hidir obj",
+            "problemMatcher": [],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            }
+        },
+        {
+            "label": "build",
+            "type": "shell",
+            "command": "stack exec -- clash src/System.hs -isrc --verilog -odir obj -hidir obj",
+            "problemMatcher": [],
+        },
+        
+        {
+            "label": "clean",
+            "type": "shell",
+            "command": "stack clean && rm -rf obj && rm -rf verilog",
+            "problemMatcher": [],
+        }
+    ]
+}

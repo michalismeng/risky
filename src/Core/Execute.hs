@@ -1,13 +1,4 @@
-{-# LANGUAGE GADTs #-}
-{-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE NoImplicitPrelude #-}
-{-# LANGUAGE TypeOperators #-}
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE TypeApplications #-}
-{-# LANGUAGE KindSignatures #-}
-{-# LANGUAGE TypeFamilies #-}
-
-module Core.ALU where
+module Core.Execute where
 
 import Core.Definitions
 import Clash.Prelude
@@ -45,3 +36,4 @@ execute :: InstructionE -> XSigned
 execute instr = case instr of
     ArithmeticE op a b d -> alu op a b
     BranchE     op a b o -> bool 0 1 $ bru op a b
+    UtypeE      op a b d -> bool a (a + b) (op == AUIPC)

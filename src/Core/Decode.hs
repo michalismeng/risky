@@ -2,9 +2,8 @@ module Core.Decode where
 
 import Core.Definitions
 import Core.RegFile
-import Core.ALU
+import Core.Execute
 
-import Prelude ()
 import Data.Bool
 import Data.Maybe
 
@@ -51,6 +50,7 @@ load    =  (== op_load  ) . opcode
 store   =  (== op_store ) . opcode
 iType   =  (== op_itype ) . opcode
 rType   =  (== op_rtype ) . opcode
+uType x =  opcode x == op_lui || opcode x == op_auipc
 fence   =  (== op_fence ) . opcode
 system  =  (== op_system) . opcode
 
@@ -61,6 +61,7 @@ decodeOpcode instr
         SRA -> bool SRA SRL f7Zero 
         _   -> irOpcode
     | branch instr = bOpcode
+    | uType instr = bool LUI AUIPC (opcode instr == op_auipc)
     where
         f7Zero = funct7 instr == 0
         irOpcode = getOpcode Core.Definitions.irAssoc
@@ -81,7 +82,6 @@ encodeOpcode instr = case instr of
             SUB -> getXOpcode Core.Definitions.irAssoc ADD
             SRL -> getXOpcode Core.Definitions.irAssoc SRA
             _   -> getXOpcode Core.Definitions.irAssoc op
-
         bXOpcode op  = getXOpcode Core.Definitions.bAssoc op
 
         getXOpcode assoc op = xops !! fromJust ind
@@ -89,7 +89,6 @@ encodeOpcode instr = case instr of
                 (ops, xops) = (map snd assoc, map fst assoc)
                 ind = op `elemIndex` ops
 
-{-# LANGUAGE NOINLINE #-}
 decodeInstruction :: XTYPE -> InstructionD
 decodeInstruction instruction
     | branch instruction = Branch op2 s1 s2 (bImm instruction)      -- TODO: Add all instruction types
@@ -97,7 +96,8 @@ decodeInstruction instruction
     | store instruction = Store op2 s1 s2 (sImm instruction)
     | rType instruction = Rtype op2 s1 s2 dst (funct7 instruction)
     | iType instruction = Itype op2 s1 dst (iImm instruction)
-    | otherwise = Clash.Prelude.undefined -- TODO: Exception Bad Instruction
+    | uType instruction = Utype op2 dst (uImm instruction)
+    | otherwise = error "Unknown instruction type"                  -- TODO: Exception Bad Instruction
     where
         s1  = decodeRegister $ rs1 instruction
         s2  = decodeRegister $ rs2 instruction
@@ -112,14 +112,17 @@ encodeInstruction instr = case instr of
     Store op2 r1 r2 imm    -> slice d11 d5 imm ++# encodeReg r2 ++# encodeReg r1 ++# xOp2 ++# slice d4 d0 imm ++# op_store
     Rtype op2 r1 r2 rd f7  -> f7 ++# encodeReg r2 ++# encodeReg r1 ++# xOp2 ++# encodeReg rd ++# op_rtype
     Itype op2 r1 rd imm    -> imm ++# encodeReg r1 ++# xOp2 ++# encodeReg rd ++# op_itype
+    Utype op rd imm        -> imm ++# encodeReg rd ++# bool op_lui op_auipc (op == AUIPC)
     where
         encodeReg (Register i) = pack i
         xOp2 = encodeOpcode instr
 
 decodeInstructionE :: Registers -> InstructionD -> InstructionE
 decodeInstructionE registers instruction = case instruction of
-    Itype  op rs1 rd imm     -> ArithmeticE op (readReg registers rs1) (unpack $ signExtend imm)     rd
-    Rtype  op rs1 rs2 rd f7  -> ArithmeticE op (readReg registers rs1) (readReg registers rs2)       rd
-    Branch op rs1 rs2 imm    -> BranchE     op (readReg registers rs1) (readReg registers rs2)   (unpack $ signExtend z) where z = (imm ++# (0 :: BitVector 1))
+    Itype  op rs1 rd imm     -> ArithmeticE op (readReg registers rs1) (unpack $ signExtend imm) rd
+    Rtype  op rs1 rs2 rd f7  -> ArithmeticE op (readReg registers rs1) (readReg registers rs2)   rd
+    Branch op rs1 rs2 imm    -> BranchE     op (readReg registers rs1) (readReg registers rs2)   (unpack $ signExtend z) where z = imm ++# (0 :: BitVector 1)
+    Utype  op rd imm         -> UtypeE      op (unpack z)              (readPC registers)        rd                      where z = imm ++# (0 :: BitVector 12)
     where
         readReg registers x = unpack (readRegister registers x) :: XSigned
+        readPC registers = unpack (readRegister registers PC) :: XSigned
