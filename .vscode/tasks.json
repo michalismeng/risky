@@ -2,9 +2,9 @@
     "version": "2.0.0",
     "tasks": [
         {
-            "label": "runi",
+            "label": "build",
             "type": "shell",
-            "command": "stack exec -- clashi src/System.hs -isrc -odir obj -hidir obj",
+            "command": "stack build",
             "problemMatcher": [],
             "group": {
                 "kind": "build",
@@ -12,7 +12,13 @@
             }
         },
         {
-            "label": "build",
+            "label": "runi",
+            "type": "shell",
+            "command": "stack exec -- clashi src/System.hs -isrc -odir obj -hidir obj",
+            "problemMatcher": []
+        },
+        {
+            "label": "build-clash",
             "type": "shell",
             "command": "stack exec -- clash src/System.hs -isrc --verilog -odir obj -hidir obj",
             "problemMatcher": [],

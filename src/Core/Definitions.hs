@@ -32,6 +32,8 @@ data Registers = Registers {
 data Opcode
     = LUI       -- uType
     | AUIPC
+    | JAL       -- Jtype
+    | JALR
     | ADD       -- irType
     | SUB
     | SLT
@@ -56,6 +58,7 @@ data Instruction register
     | Itype     Opcode register Register (BitVector 12)
     | Rtype     Opcode register register Register (BitVector 7)
     | Utype     Opcode register (BitVector 20)
+    | Jtype     Opcode Register (BitVector 20)
     | Load      Opcode register Register (BitVector 12)
     | Store     Opcode register register (BitVector 12)
     deriving (Show, Eq)
@@ -64,6 +67,7 @@ data InstructionE
     = BranchE       Opcode XSigned XSigned XSigned
     | ArithmeticE   Opcode XSigned XSigned Register
     | UtypeE        Opcode XSigned XSigned Register
+    | JumpE         Opcode XSigned XSigned Register
     deriving (Show, Eq)
 
 type InstructionD = Instruction Register
@@ -71,6 +75,7 @@ type InstructionD = Instruction Register
 op_lui      = 0b0110111 :: BitVector 7
 op_auipc    = 0b0010111 :: BitVector 7
 op_jal      = 0b1101111 :: BitVector 7
+op_jalR     = 0b1100111 :: BitVector 7
 op_branch   = 0b1100011 :: BitVector 7
 op_load     = 0b0000011 :: BitVector 7
 op_store    = 0b0100011 :: BitVector 7
@@ -80,6 +85,7 @@ op_fence    = 0b0001111 :: BitVector 7
 op_system   = 0b1110011 :: BitVector 7
 
 -- only instructions with unique funct3 opcode appear in these lists
+
 irAssoc = (0b000 :: XOpcode2, ADD)  :> 
           (0b010, SLT)  :>
           (0b011, SLTU) :>  
@@ -96,6 +102,6 @@ bAssoc =  (0b000 :: XOpcode2, BEQ)  :>
           (0b101, BLTU) :>
           (0b110, BGE)  :>
           (0b111, BGEU) :>
-          (0b111, BGEU) :>
+          (0b111, BGEU) :>      -- TODO: This vector is padded with dummy entries to match the size of 'irAssoc'. Fix this
           (0b111, BGEU) :>
           Nil

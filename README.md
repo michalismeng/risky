@@ -1,1 +1,1 @@
-# riscy
+# risky

@@ -45,6 +45,7 @@ jImm x = slice d31 d31 x ++# slice d19 d12 x ++# slice d20 d20 x ++# slice d30 d
 lui     =  (== op_lui   ) . opcode
 auipc   =  (== op_auipc ) . opcode
 jal     =  (== op_jal   ) . opcode
+jalR    =  (== op_jalR  ) . opcode
 branch  =  (== op_branch) . opcode
 load    =  (== op_load  ) . opcode
 store   =  (== op_store ) . opcode
@@ -74,7 +75,7 @@ decodeOpcode instr
 
 encodeOpcode :: InstructionD -> XOpcode2
 encodeOpcode instr = case instr of
-    Itype op _ _ _    -> irXOpcode op
+    Itype op _ _ _    -> bool (irXOpcode op) 0 (op == JALR)
     Rtype op _ _ _ _  -> irXOpcode op
     Branch op _ _ _   -> bXOpcode op
     where
@@ -97,6 +98,8 @@ decodeInstruction instruction
     | rType instruction = Rtype op2 s1 s2 dst (funct7 instruction)
     | iType instruction = Itype op2 s1 dst (iImm instruction)
     | uType instruction = Utype op2 dst (uImm instruction)
+    | jal instruction   = Jtype JAL dst (jImm instruction)
+    | jalR instruction  = Itype JALR s1 dst (iImm instruction)
     | otherwise = error "Unknown instruction type"                  -- TODO: Exception Bad Instruction
     where
         s1  = decodeRegister $ rs1 instruction
@@ -111,7 +114,7 @@ encodeInstruction instr = case instr of
     Load op2 r1 rd imm     -> imm ++# encodeReg r1 ++# xOp2 ++# encodeReg rd ++# op_load
     Store op2 r1 r2 imm    -> slice d11 d5 imm ++# encodeReg r2 ++# encodeReg r1 ++# xOp2 ++# slice d4 d0 imm ++# op_store
     Rtype op2 r1 r2 rd f7  -> f7 ++# encodeReg r2 ++# encodeReg r1 ++# xOp2 ++# encodeReg rd ++# op_rtype
-    Itype op2 r1 rd imm    -> imm ++# encodeReg r1 ++# xOp2 ++# encodeReg rd ++# op_itype
+    Itype op2 r1 rd imm    -> imm ++# encodeReg r1 ++# xOp2 ++# encodeReg rd ++# bool op_itype op_jalR (op2 == JALR)
     Utype op rd imm        -> imm ++# encodeReg rd ++# bool op_lui op_auipc (op == AUIPC)
     where
         encodeReg (Register i) = pack i
@@ -119,10 +122,15 @@ encodeInstruction instr = case instr of
 
 decodeInstructionE :: Registers -> InstructionD -> InstructionE
 decodeInstructionE registers instruction = case instruction of
-    Itype  op rs1 rd imm     -> ArithmeticE op (readReg registers rs1) (unpack $ signExtend imm) rd
-    Rtype  op rs1 rs2 rd f7  -> ArithmeticE op (readReg registers rs1) (readReg registers rs2)   rd
-    Branch op rs1 rs2 imm    -> BranchE     op (readReg registers rs1) (readReg registers rs2)   (unpack $ signExtend z) where z = imm ++# (0 :: BitVector 1)
-    Utype  op rd imm         -> UtypeE      op (unpack z)              (readPC registers)        rd                      where z = imm ++# (0 :: BitVector 12)
+    Itype  op rs1 rd imm     -> case op of 
+                                    JALR -> JumpE       op (unpack (slice d31 d1 z ++# z1)) (readReg PC) rd    where z = pack ((unpack $ signExtend imm) + readReg rs1)
+                                    _    -> ArithmeticE op (readReg rs1) (unpack $ signExtend imm) rd
+    Rtype  op rs1 rs2 rd f7  -> ArithmeticE op (readReg rs1)           (readReg rs2)   rd
+    Branch op rs1 rs2 imm    -> BranchE     op (readReg rs1)           (readReg rs2)   (unpack $ signExtend z) where z = imm ++# z1
+    Utype  op rd imm         -> UtypeE      op (unpack z)              (readReg PC)    rd                      where z = imm ++# z12
+    Jtype  op rd imm         -> JumpE       op (unpack $ signExtend z) (readReg PC)    rd                      where z = imm ++# z1
     where
-        readReg registers x = unpack (readRegister registers x) :: XSigned
-        readPC registers = unpack (readRegister registers PC) :: XSigned
+        readReg PC = unpack (readRegister registers PC) :: XSigned
+        readReg x  = unpack (readRegister registers x)  :: XSigned
+        z1  = 0 :: BitVector 1
+        z12 = 0 :: BitVector 12
