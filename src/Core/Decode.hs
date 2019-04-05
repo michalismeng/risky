@@ -114,7 +114,8 @@ encodeInstruction instr = case instr of
     Load op2 r1 rd imm     -> imm ++# encodeReg r1 ++# xOp2 ++# encodeReg rd ++# op_load
     Store op2 r1 r2 imm    -> slice d11 d5 imm ++# encodeReg r2 ++# encodeReg r1 ++# xOp2 ++# slice d4 d0 imm ++# op_store
     Rtype op2 r1 r2 rd f7  -> f7 ++# encodeReg r2 ++# encodeReg r1 ++# xOp2 ++# encodeReg rd ++# op_rtype
-    Itype op2 r1 rd imm    -> imm ++# encodeReg r1 ++# xOp2 ++# encodeReg rd ++# bool op_itype op_jalR (op2 == JALR)
+    Itype op2 r1 rd imm    -> imm ++# encodeReg r1 ++# xOp2 ++# encodeReg rd ++# bool op_itype op_jalR (op2 == JALR)    -- TODO: Fix imm for Shift instructions
+    Jtype op rd imm        -> (slice d19 d19 imm) ++# (slice d9 d0 imm) ++# (slice d10 d10 imm) ++# (slice d18 d11 imm) ++# encodeReg rd ++# op_jal
     Utype op rd imm        -> imm ++# encodeReg rd ++# bool op_lui op_auipc (op == AUIPC)
     where
         encodeReg (Register i) = pack i
