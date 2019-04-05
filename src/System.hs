@@ -19,6 +19,7 @@ topEntity = execute decE
 
 testLui = encodeInstruction $ Utype AUIPC (Register 2) 25
 testLuiDec = decodeInstruction testLui
+testLuiDecE = decodeInstructionE registers testLuiDec
 
 testJalR = encodeInstruction $ Itype JALR (Register 1) (Register 2) 26
 testJalRDec = decodeInstruction testJalR

@@ -64,10 +64,10 @@ data Instruction register
     deriving (Show, Eq)
 
 data InstructionE
-    = BranchE       Opcode XSigned XSigned XSigned
-    | ArithmeticE   Opcode XSigned XSigned Register
-    | UtypeE        Opcode XSigned XSigned Register
-    | JumpE         Opcode XSigned XSigned Register
+    = BranchE       Opcode XSigned XSigned XSigned XSigned  -- Operand a, Operand b, PC, PC Offset
+    | ArithmeticE   Opcode XSigned XSigned Register         -- Operand a, Operand b, Destination Register
+    | UtypeE        Opcode XSigned XSigned Register         -- Upper Immediate, PC
+    | JumpE         Opcode XSigned XSigned Register         -- PC Offset, PC
     deriving (Show, Eq)
 
 type InstructionD = Instruction Register

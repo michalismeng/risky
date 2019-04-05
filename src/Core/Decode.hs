@@ -126,7 +126,7 @@ decodeInstructionE registers instruction = case instruction of
                                     JALR -> JumpE       op (unpack (slice d31 d1 z ++# z1)) (readReg PC) rd    where z = pack ((unpack $ signExtend imm) + readReg rs1)
                                     _    -> ArithmeticE op (readReg rs1) (unpack $ signExtend imm) rd
     Rtype  op rs1 rs2 rd f7  -> ArithmeticE op (readReg rs1)           (readReg rs2)   rd
-    Branch op rs1 rs2 imm    -> BranchE     op (readReg rs1)           (readReg rs2)   (unpack $ signExtend z) where z = imm ++# z1
+    Branch op rs1 rs2 imm    -> BranchE     op (readReg rs1)           (readReg rs2)  (readReg PC)   (unpack $ signExtend z) where z = imm ++# z1
     Utype  op rd imm         -> UtypeE      op (unpack z)              (readReg PC)    rd                      where z = imm ++# z12
     Jtype  op rd imm         -> JumpE       op (unpack $ signExtend z) (readReg PC)    rd                      where z = imm ++# z1
     where

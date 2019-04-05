@@ -34,6 +34,7 @@ bru op a b = case op of
 
 execute :: InstructionE -> XSigned
 execute instr = case instr of
-    ArithmeticE op a b d -> alu op a b
-    BranchE     op a b o -> bool 0 1 $ bru op a b
-    UtypeE      op a b d -> bool a (a + b) (op == AUIPC)
+    ArithmeticE op a b dst      -> alu op a b
+    BranchE     op a b pc off   -> bool 0 1 $ bru op a b
+    UtypeE      op a b dst      -> bool a (a + b) (op == AUIPC)
+    JumpE       op trg pc dst   -> pc + 4

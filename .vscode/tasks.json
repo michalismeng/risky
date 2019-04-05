@@ -18,12 +18,17 @@
             "problemMatcher": []
         },
         {
-            "label": "build-clash",
+            "label": "build-verilog",
             "type": "shell",
             "command": "stack exec -- clash src/System.hs -isrc --verilog -odir obj -hidir obj",
             "problemMatcher": [],
         },
-        
+        {
+            "label": "test",
+            "type": "shell",
+            "command": "stack exec -- runhaskell test/Spec.hs",
+            "problemMatcher": [],
+        },
         {
             "label": "clean",
             "type": "shell",

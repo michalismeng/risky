@@ -29,11 +29,13 @@ dependencies:
 - clash-lib
 - clash-ghc
 - clash-prelude
-- hspec
 - singletons
 - ghc-typelits-natnormalise
 - ghc-typelits-knownnat
 - ghc-typelits-extra
+- HUnit >= 1.6.0.0
+- mockery >= 0.3
+- QuickCheck
 
 library:
   source-dirs: 
@@ -43,3 +45,34 @@ library:
   - Core.RegFile
   - Core.Decode
   - Core.Execute
+
+# executable:
+#   main: System.hs
+#   source-dirs: src
+#   dependencies:
+#   - base >= 4.7 && < 5
+#   - deepseq
+#   - clash-lib
+#   - clash-ghc
+#   - clash-prelude
+#   - hspec
+#   - singletons
+#   - ghc-typelits-natnormalise
+#   - ghc-typelits-knownnat
+#   - ghc-typelits-extra
+#   build-tools: clash-ghc
+
+# tests:
+#   spec:
+#     main: test/Spec.hs
+#     source-dirs:
+#       - test
+#     dependencies:
+#       - hspec == 2.*
+#       - QuickCheck
+#       - temporary
+#       - mockery >= 0.3
+#       - interpolate
+#       - template-haskell
+#       - HUnit >= 1.6.0.0
+#     build-tools: hspec-discover
