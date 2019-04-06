@@ -36,6 +36,7 @@ dependencies:
 - HUnit >= 1.6.0.0
 - mockery >= 0.3
 - QuickCheck
+- hspec == 2.*
 
 library:
   source-dirs: 
