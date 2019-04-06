@@ -1,26 +1,62 @@
 module System where
 
 import Core.RegFile
+import Core.Fetch
 import Core.Decode
 import Core.Execute
+import Core.Writeback
 import Core.Definitions
 import Data.Bool
+import Data.Maybe (catMaybes)
 
 import Prelude ()
 import Clash.Prelude
 
-registers = Registers { general = repeat (-1) :: Vec 32 XTYPE, pc = 0 :: XTYPE}
+import Control.DeepSeq (NFData)
 
-topEntity = execute decE
+simpleProgram = 
+    Itype ADD (Register 0) (Register 1) 15 :>
+    Itype ADD (Register 0) (Register 2) 20 :>
+    Rtype ADD (Register 1) (Register 2) (Register 3) 0 :>
+    Nil
+
+simpleProgramMem :: Vec 16 XTYPE
+simpleProgramMem = fmap encodeInstruction simpleProgram ++ repeat 0
+
+defaultCPUState = CPUState Fetch (Registers { general = repeat 0, pc = 0})
+
+cycle (CPUState state registers, icache) = case state of
+    Fetch -> (CPUState state' registers, icache) 
+        where 
+            state' = Decode (fetchInstruction registers icache)
+
+    Decode instr -> (CPUState state' registers, icache) 
+        where 
+            state' = Execute (decodeInstructionE registers instrD)
+            instrD = decodeInstruction instr
+
+    Execute instr -> (CPUState state' registers, icache) 
+        where
+            result = execute instr
+            state' = WriteBack result 
+            
+    WriteBack result -> (CPUState state' registers_, icache)
+        where 
+            state' = Fetch
+            registers' = writeback registers result
+            registers_ = writeRegister registers' PC (pc registers' + 4)
+
+cpuHardware initialCPU initialRAM = output
     where
-        x = encodeInstruction $ Itype SRL (Register 1) (Register 2) 0b000000000001
-        decD = decodeInstruction x
-        decE = decodeInstructionE registers decD
+        state = register (initialCPU, initialRAM) state'
+        state' = fmap System.cycle state
 
-testLui = encodeInstruction $ Utype AUIPC (Register 2) 25
-testLuiDec = decodeInstruction testLui
-testLuiDecE = decodeInstructionE registers testLuiDec
+        output = fmap getOutput state'
+        getOutput (CPUState s regs, _) = case s of
+            Fetch -> Just [readRegister regs (Register 1), readRegister regs (Register 2), readRegister regs (Register 3)]
+            Decode _ -> Nothing 
+            Execute _ -> Nothing
+            WriteBack _ -> Nothing
 
-testJalR = encodeInstruction $ Itype JALR (Register 1) (Register 2) 26
-testJalRDec = decodeInstruction testJalR
-testJalRDecE = decodeInstructionE registers testJalRDec
+
+topEntity = catMaybes $ sampleN 12 $ cpuHardware defaultCPUState simpleProgramMem

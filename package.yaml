@@ -44,8 +44,10 @@ library:
   exposed-modules:
   - Core.Definitions
   - Core.RegFile
+  - Core.Fetch
   - Core.Decode
   - Core.Execute
+  - Core.Writeback
 
 # executable:
 #   main: System.hs

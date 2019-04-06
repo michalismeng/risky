@@ -1,3 +1,5 @@
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+
 module Core.Definitions where
 
 import Prelude (Show, Eq)
@@ -7,6 +9,8 @@ import Clash.Sized.BitVector (BitVector)
 import Clash.Sized.Index
 import Clash.Sized.Vector (Vec((:>), Nil))
 import GHC.TypeLits.Extra(CLog)
+
+import Control.DeepSeq (NFData)
 
 type XLEN = 32
 type XREGLEN = CLog 2 XLEN
@@ -28,6 +32,8 @@ data Registers = Registers {
                              general :: Vec XLEN XTYPE, 
                              pc :: XTYPE }       
                              deriving Show
+
+type ICache = Vec 64 XTYPE
 
 data Opcode
     = LUI       -- uType
@@ -51,8 +57,7 @@ data Opcode
     | BGE
     | BGEU
     deriving (Show, Eq)
-
-                           
+      
 data Instruction register
     = Branch    Opcode register register (BitVector 12)
     | Itype     Opcode register Register (BitVector 12)
@@ -71,6 +76,19 @@ data InstructionE
     deriving (Show, Eq)
 
 type InstructionD = Instruction Register
+
+data Result
+    = ChangeReg XSigned Register                            -- Change the value of the given register to the given XSigned value
+    deriving Show
+
+data CPUActivity
+    = Fetch
+    | Decode XTYPE
+    | Execute InstructionE
+    | WriteBack Result
+    deriving Show
+
+data CPUState = CPUState CPUActivity Registers deriving Show
 
 op_lui      = 0b0110111 :: BitVector 7
 op_auipc    = 0b0010111 :: BitVector 7

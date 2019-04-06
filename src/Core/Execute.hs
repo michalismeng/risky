@@ -32,9 +32,9 @@ bru op a b = case op of
     where
         u x = unpack $ pack x :: XUnsigned
 
-execute :: InstructionE -> XSigned
+execute :: InstructionE -> Result
 execute instr = case instr of
-    ArithmeticE op a b dst      -> alu op a b
-    BranchE     op a b pc off   -> bool 0 1 $ bru op a b
-    UtypeE      op a b dst      -> bool a (a + b) (op == AUIPC)
-    JumpE       op trg pc dst   -> pc + 4
+    ArithmeticE op a b dst      -> ChangeReg res dst                            where res = alu op a b
+    BranchE     op a b pc off   -> ChangeReg (bool pc (pc + off) res) PC        where res = bru op a b
+    UtypeE      op a b dst      -> ChangeReg res dst                            where res = bool a (a + b) (op == AUIPC)
+    JumpE       op trg pc dst   -> undefined -- TODO: This needs fixing since two registers must change value (PC and dst): trg + pc
