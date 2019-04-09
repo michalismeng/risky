@@ -55,7 +55,15 @@ data Opcode
     | BLT
     | BLTU
     | BGE
-    | BGEU
+    | BGEU      
+    | LB        -- memory type
+    | LH
+    | LW
+    | LBU
+    | LHU
+    | SB
+    | SH
+    | SW
     deriving (Show, Eq)
       
 data Instruction register
@@ -73,12 +81,15 @@ data InstructionE
     | ArithmeticE   Opcode XSigned XSigned Register         -- Operand a, Operand b, Destination Register
     | UtypeE        Opcode XSigned XSigned Register         -- Upper Immediate, PC
     | JumpE         Opcode XSigned XSigned Register         -- PC Offset, PC
+    | LoadE         Opcode XSigned XSigned Register         -- Memory Base, Memory Offset, Destination Register
+    | StoreE        Opcode XSigned XSigned XSigned          -- Memory Base, Memory Offset, Source Register
     deriving (Show, Eq)
 
 type InstructionD = Instruction Register
 
 data Result
-    = ChangeReg XSigned Register                            -- Change the value of the given register to the given XSigned value
+    = ChangeReg  XSigned Register                            -- Change the value of the given register to the given XSigned value
+    | ChangeReg2 XSigned Register XSigned Register           -- Change the value of the two given registers
     deriving Show
 
 data CPUActivity

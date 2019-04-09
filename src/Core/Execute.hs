@@ -3,6 +3,8 @@ module Core.Execute where
 import Core.Definitions
 import Clash.Prelude
 
+import Debug.Trace
+
 import Data.Bool
 
 alu :: Opcode -> XSigned -> XSigned -> XSigned
@@ -37,4 +39,4 @@ execute instr = case instr of
     ArithmeticE op a b dst      -> ChangeReg res dst                            where res = alu op a b
     BranchE     op a b pc off   -> ChangeReg (bool pc (pc + off) res) PC        where res = bru op a b
     UtypeE      op a b dst      -> ChangeReg res dst                            where res = bool a (a + b) (op == AUIPC)
-    JumpE       op trg pc dst   -> undefined -- TODO: This needs fixing since two registers must change value (PC and dst): trg + pc
+    JumpE       op trg pc dst   -> ChangeReg2 pc dst res PC                     where res = trg + pc

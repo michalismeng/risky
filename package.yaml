@@ -48,6 +48,7 @@ library:
   - Core.Decode
   - Core.Execute
   - Core.Writeback
+  - Core.Pipeline
 
 # executable:
 #   main: System.hs

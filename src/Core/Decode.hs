@@ -96,7 +96,7 @@ decodeInstruction instruction
     | load instruction = Load op2 s1 dst (iImm instruction)
     | store instruction = Store op2 s1 s2 (sImm instruction)
     | rType instruction = Rtype op2 s1 s2 dst (funct7 instruction)
-    | iType instruction = Itype op2 s1 dst (iImm instruction)
+    | iType instruction = Itype op2' s1 dst (iImm instruction) 
     | uType instruction = Utype op2 dst (uImm instruction)
     | jal instruction   = Jtype JAL dst (jImm instruction)
     | jalR instruction  = Itype JALR s1 dst (iImm instruction)
@@ -106,6 +106,7 @@ decodeInstruction instruction
         s2  = decodeRegister $ rs2 instruction
         dst = decodeRegister $ rd instruction
         op2 = decodeOpcode instruction
+        op2' = bool op2 ADD (op2 == SUB)
         decodeRegister = Register . unpack
 
 encodeInstruction :: InstructionD -> XTYPE
@@ -131,7 +132,7 @@ decodeInstructionE registers instruction = case instruction of
     Utype  op rd imm         -> UtypeE      op (unpack z)              (readReg PC)    rd                                    where z = imm ++# z12
     Jtype  op rd imm         -> JumpE       op (unpack $ signExtend z) (readReg PC)    rd                                    where z = imm ++# z1
     where
-        readReg PC = unpack (readRegister registers PC) :: XSigned
-        readReg x  = unpack (readRegister registers x)  :: XSigned
+        readReg PC = unpack (readRegister registers PC)
+        readReg x  = unpack (readRegister registers x)
         z1  = 0 :: BitVector 1
         z12 = 0 :: BitVector 12
