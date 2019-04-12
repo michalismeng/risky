@@ -62,11 +62,15 @@ decodeOpcode instr
         SRA -> bool SRA SRL f7Zero 
         _   -> irOpcode
     | branch instr = bOpcode
+    | load instr  = lOpcode
+    | store instr = sOpcode
     | uType instr = bool LUI AUIPC (opcode instr == op_auipc)
     where
-        f7Zero = funct7 instr == 0
         irOpcode = getOpcode Core.Definitions.irAssoc
         bOpcode  = getOpcode Core.Definitions.bAssoc
+        lOpcode  = getOpcode Core.Definitions.lAssoc
+        sOpcode  = getOpcode Core.Definitions.sAssoc
+        f7Zero = funct7 instr == 0
 
         getOpcode assoc = ops !! fromJust ind
             where
@@ -78,12 +82,16 @@ encodeOpcode instr = case instr of
     Itype op _ _ _    -> bool (irXOpcode op) 0 (op == JALR)
     Rtype op _ _ _ _  -> irXOpcode op
     Branch op _ _ _   -> bXOpcode op
+    Load   op _ _ _   -> lXOpcode op
+    Store  op _ _ _   -> sXOpcode op
     where
         irXOpcode op = case op of 
             SUB -> getXOpcode Core.Definitions.irAssoc ADD
             SRL -> getXOpcode Core.Definitions.irAssoc SRA
             _   -> getXOpcode Core.Definitions.irAssoc op
         bXOpcode op  = getXOpcode Core.Definitions.bAssoc op
+        lXOpcode op  = getXOpcode Core.Definitions.lAssoc op
+        sXOpcode op  = getXOpcode Core.Definitions.sAssoc op
 
         getXOpcode assoc op = xops !! fromJust ind
             where
@@ -92,14 +100,14 @@ encodeOpcode instr = case instr of
 
 decodeInstruction :: XTYPE -> InstructionD
 decodeInstruction instruction
-    | branch instruction = Branch op2 s1 s2 (bImm instruction)      -- TODO: Add all instruction types
-    | load instruction = Load op2 s1 dst (iImm instruction)
-    | store instruction = Store op2 s1 s2 (sImm instruction)
-    | rType instruction = Rtype op2 s1 s2 dst (funct7 instruction)
-    | iType instruction = Itype op2' s1 dst (iImm instruction) 
-    | uType instruction = Utype op2 dst (uImm instruction)
-    | jal instruction   = Jtype JAL dst (jImm instruction)
-    | jalR instruction  = Itype JALR s1 dst (iImm instruction)
+    | branch instruction = Branch op2 s1 s2 (bImm instruction)
+    | load instruction   = Load  op2 s1 dst (iImm instruction)
+    | store instruction  = Store op2 s1 s2 (sImm instruction)
+    | rType instruction  = Rtype op2 s1 s2 dst (funct7 instruction)
+    | iType instruction  = Itype op2' s1 dst (iImm instruction) 
+    | uType instruction  = Utype op2 dst (uImm instruction)
+    | jal instruction    = Jtype JAL dst (jImm instruction)
+    | jalR instruction   = Itype JALR s1 dst (iImm instruction)
     | otherwise = error "Unknown instruction type"                  -- TODO: Exception Bad Instruction
     where
         s1  = decodeRegister $ rs1 instruction
@@ -115,7 +123,7 @@ encodeInstruction instr = case instr of
     Load op2 r1 rd imm     -> imm ++# encodeReg r1 ++# xOp2 ++# encodeReg rd ++# op_load
     Store op2 r1 r2 imm    -> slice d11 d5 imm ++# encodeReg r2 ++# encodeReg r1 ++# xOp2 ++# slice d4 d0 imm ++# op_store
     Rtype op2 r1 r2 rd f7  -> f7 ++# encodeReg r2 ++# encodeReg r1 ++# xOp2 ++# encodeReg rd ++# op_rtype
-    Itype op2 r1 rd imm    -> imm ++# encodeReg r1 ++# xOp2 ++# encodeReg rd ++# bool op_itype op_jalR (op2 == JALR)    -- TODO: Fix imm for Shift instructions
+    Itype op2 r1 rd imm    -> imm ++# encodeReg r1 ++# xOp2 ++# encodeReg rd ++# bool op_itype op_jalR (op2 == JALR)    -- TODO: Fix imm for Shift instructions (user should not specify upper bits but only shamt)
     Jtype op rd imm        -> (slice d19 d19 imm) ++# (slice d9 d0 imm) ++# (slice d10 d10 imm) ++# (slice d18 d11 imm) ++# encodeReg rd ++# op_jal
     Utype op rd imm        -> imm ++# encodeReg rd ++# bool op_lui op_auipc (op == AUIPC)
     where
@@ -127,6 +135,8 @@ decodeInstructionE registers instruction = case instruction of
     Itype  op rs1 rd imm     -> case op of 
                                     JALR -> JumpE       op (unpack (slice d31 d1 z ++# z1)) (readReg PC) rd    where z = pack ((unpack $ signExtend imm) + readReg rs1)
                                     _    -> ArithmeticE op (readReg rs1) (unpack $ signExtend imm) rd
+    Load   op rs1 rd imm     -> LoadE       op (readReg rs1)           (unpack $ signExtend imm)   rd
+    Store  op rs1 rs2 imm    -> StoreE      op (readReg rs1)           (readReg rs2)   (unpack $ signExtend imm)
     Rtype  op rs1 rs2 rd f7  -> ArithmeticE op (readReg rs1)           (readReg rs2)   rd
     Branch op rs1 rs2 imm    -> BranchE     op (readReg rs1)           (readReg rs2)  (readReg PC)   (unpack $ signExtend z) where z = imm ++# z1
     Utype  op rd imm         -> UtypeE      op (unpack z)              (readReg PC)    rd                                    where z = imm ++# z12

@@ -44,7 +44,7 @@ simpleProgramMem = fmap encodeInstruction simpleProgram ++ repeat 0
 
 defaultCPUState = CPUState Fetch (Registers { general = repeat 0, pc = 0})
 
-simulation = fmap (\(pc, x) -> (unpack pc :: XSigned, fmap unpack x :: [XSigned])) $ catMaybes $ sampleN 92 $ cpuHardware defaultCPUState simpleProgramMem
+simulation = fmap (\(pc, x) -> (unpack pc :: XSigned, fmap unpack x :: [XSigned])) $ sampleN 92 $ cpuHardware defaultCPUState simpleProgramMem
 
 main :: IO ()
 main = hspec $ do

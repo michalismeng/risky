@@ -47,6 +47,7 @@ library:
   - Core.Fetch
   - Core.Decode
   - Core.Execute
+  - Core.Memory
   - Core.Writeback
   - Core.Pipeline
 

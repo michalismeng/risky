@@ -4,40 +4,47 @@ import Core.RegFile
 import Core.Fetch
 import Core.Decode
 import Core.Execute
+import Core.Memory
 import Core.Writeback
 import Core.Definitions
 
 import Clash.Prelude
 
-cycle (CPUState state registers, icache) = case state of
-    Fetch -> (CPUState state' registers, icache) 
+cycle (CPUState state registers, icache, dcache) = case state of
+    Fetch -> (CPUState state' registers', icache, dcache) 
         where 
             state' = Decode (fetchInstruction registers icache)
+            registers' = writeRegister registers PC (pc registers + 4)
 
-    Decode instr -> (CPUState state' registers, icache) 
+    Decode instr -> (CPUState state' registers, icache, dcache) 
         where 
-            state' = Execute (decodeInstructionE registers instrD)
             instrD = decodeInstruction instr
+            state' = Execute (decodeInstructionE registers instrD)
 
-    Execute instr -> (CPUState state' registers, icache) 
+    Execute instrE -> (CPUState state' registers, icache, dcache) 
         where
-            result = execute instr
-            state' = WriteBack result 
+            result = execute instrE
+            state' = Memory result
+    
+    Memory memResult -> (CPUState state' registers, icache, dcache')
+        where
+            (dcache', result) = memory dcache memResult 
+            state' = WriteBack result
             
-    WriteBack result -> (CPUState state' registers_, icache)
-        where 
-            state' = Fetch
+    WriteBack result -> (CPUState state' registers', icache, dcache)
+        where
             registers' = writeback registers result
-            registers_ = writeRegister registers' PC (pc registers' + 4)
+            state' = Fetch
 
-cpuHardware initialCPU initialRAM = output      -- TODO: This function is for testing. Move to Spec.hs
+cpuHardware initialCPU initialProg initialData = output
     where
-        state = register (initialCPU, initialRAM) state'
+        state = register (initialCPU, initialProg, initialData) state'
         state' = fmap Core.Pipeline.cycle state
 
         output = fmap getOutput state'
-        getOutput (CPUState s regs, _) = case s of
-            Fetch -> Just  ((readRegister regs PC - 4), (fmap (\i -> readRegister regs (Register i)) [0..5]))
-            Decode _ -> Nothing 
-            Execute _ -> Nothing
-            WriteBack _ -> Nothing
+        getOutput (CPUState s regs, _, _) = case s of
+            Fetch -> (1, (readRegister regs PC - 4), (readRegister regs (Register 3) ))
+            Decode _ -> (2, (readRegister regs PC - 4), (readRegister regs (Register 3) )) 
+            Execute _ -> (3, (readRegister regs PC - 4), (readRegister regs (Register 3) ))
+            Memory _   -> (4, (readRegister regs PC - 4), (readRegister regs (Register 3) ))
+            WriteBack _ -> (5, (readRegister regs PC - 4), (readRegister regs (Register 3) ))

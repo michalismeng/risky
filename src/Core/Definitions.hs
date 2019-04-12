@@ -7,7 +7,7 @@ import Clash.Sized.Unsigned (Unsigned)
 import Clash.Sized.Signed (Signed)
 import Clash.Sized.BitVector (BitVector)
 import Clash.Sized.Index
-import Clash.Sized.Vector (Vec((:>), Nil))
+import Clash.Sized.Vector (Vec((:>), Nil), repeat, (++))
 import GHC.TypeLits.Extra(CLog)
 
 import Control.DeepSeq (NFData)
@@ -29,7 +29,7 @@ data Register = Register (Index XLEN)
               deriving (Show, Eq)
 
 data Registers = Registers {
-                             general :: Vec XLEN XTYPE, 
+                             general :: Vec 5 XTYPE, 
                              pc :: XTYPE }       
                              deriving Show
 
@@ -64,6 +64,7 @@ data Opcode
     | SB
     | SH
     | SW
+    | NOP       -- dummy instruction used to pad data structures - not in specification
     deriving (Show, Eq)
       
 data Instruction register
@@ -87,6 +88,12 @@ data InstructionE
 
 type InstructionD = Instruction Register
 
+data MemoryResult
+    = ReadMemory   Opcode XUnsigned Register                   -- Memory address, Destination Register
+    | WriteMemory  Opcode XUnsigned XSigned                    -- Memory address, Write Value
+    | NoMemOp      Result                                      -- (Used by instructions that do not access memory)
+    deriving Show
+
 data Result
     = ChangeReg  XSigned Register                            -- Change the value of the given register to the given XSigned value
     | ChangeReg2 XSigned Register XSigned Register           -- Change the value of the two given registers
@@ -96,6 +103,7 @@ data CPUActivity
     = Fetch
     | Decode XTYPE
     | Execute InstructionE
+    | Memory MemoryResult 
     | WriteBack Result
     deriving Show
 
@@ -114,23 +122,38 @@ op_fence    = 0b0001111 :: BitVector 7
 op_system   = 0b1110011 :: BitVector 7
 
 -- only instructions with unique funct3 opcode appear in these lists
+-- TODO: All vectors are padded with dummy entries to match the size of 8. Fix this to be variable size (take care of getOpcode function in Decode.hs)
 
-irAssoc = (0b000 :: XOpcode2, ADD)  :> 
+irAssoc :: Vec 8 (XOpcode2, Opcode)
+irAssoc = (0b000, ADD)  :> 
           (0b010, SLT)  :>
           (0b011, SLTU) :>  
           (0b100, XOR)  :>  
           (0b110, OR)   :> 
           (0b111, AND)  :> 
           (0b001, SL)   :> 
-          (0b101, SRA)  :>
-          Nil   
+          (0b101, SRA)  :> Nil
+          ++ repeat (0b111, NOP)
 
-bAssoc =  (0b000 :: XOpcode2, BEQ)  :>
+bAssoc :: Vec 8 (XOpcode2, Opcode)
+bAssoc =  (0b000, BEQ)  :>
           (0b001, BNE)  :>
           (0b100, BLT)  :>
           (0b101, BLTU) :>
           (0b110, BGE)  :>
-          (0b111, BGEU) :>
-          (0b111, BGEU) :>      -- TODO: This vector is padded with dummy entries to match the size of 'irAssoc'. Fix this
-          (0b111, BGEU) :>
-          Nil
+          (0b111, BGEU) :> Nil               
+          ++ repeat (0b111, NOP)     
+
+lAssoc :: Vec 8 (XOpcode2, Opcode)
+lAssoc = (0b000, LB)  :>
+         (0b001, LH)  :>
+         (0b010, LW)  :>
+         (0b100, LBU) :>
+         (0b101, LHU) :> Nil
+         ++ repeat (0b111, NOP)
+
+sAssoc :: Vec 8 (XOpcode2, Opcode)
+sAssoc = (0b000, SB)  :>
+         (0b001, SH)  :>
+         (0b010, SW)  :> Nil
+         ++ repeat (0b111, NOP)
