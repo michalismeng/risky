@@ -9,6 +9,8 @@ import Data.Maybe
 
 import Clash.Prelude
 
+import qualified Prelude as P
+
 opcode :: XTYPE -> BitVector 7
 opcode = slice d6 d0
 
@@ -108,7 +110,7 @@ decodeInstruction instruction
     | uType instruction  = Utype op2 dst (uImm instruction)
     | jal instruction    = Jtype JAL dst (jImm instruction)
     | jalR instruction   = Itype JALR s1 dst (iImm instruction)
-    | otherwise = error "Unknown instruction type"                  -- TODO: Exception Bad Instruction
+    | otherwise = error ("Unknown instruction type " P.++ (show instruction))                 -- TODO: Exception Bad Instruction
     where
         s1  = decodeRegister $ rs1 instruction
         s2  = decodeRegister $ rs2 instruction

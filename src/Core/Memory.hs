@@ -25,7 +25,6 @@ writeMemory dcache op address value = case op of
         mem16 = slice d15 d0 mem
         mem24 = slice d23 d0 mem
 
--- memory :: Vec 16 XTYPE -> MemoryResult -> (Vec 16 XTYPE, Result)
 memory dcache memRes = case memRes of
     ReadMemory op base dst      -> (dcache, ChangeReg res dst)             where res = unpack $ readMemory dcache op base
     WriteMemory op base value   -> (dcache', ChangeReg 0 (Register 0))     where dcache' = writeMemory dcache op base (pack value)

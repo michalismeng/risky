@@ -8,6 +8,8 @@ o_data="outputs/${1%.*}-data"
 
 input=assembly/$1
 
+> $o_data
+> $o_text
 ./rars.jar a nc dump .text BinaryText $o_text dump .data BinaryText $o_data $input
 
 head -16 $o_data | awk '{print "  0b"$0}' | awk '{print $0" :>"}' | sponge $o_data
