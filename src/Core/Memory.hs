@@ -12,16 +12,18 @@ readMemory dcache op address = case op of
     LB  -> unpack $ signExtend $ slice d7  d0 mem
     LBU -> unpack $ zeroExtend $ slice d7  d0 mem 
     where
-        mem = dcache !! address
+        address' = shiftR address 2
+        mem = dcache !! address'
 
 writeMemory dcache op address value = case op of
-    SW -> replace address value dcache
-    SH -> replace address (mem16 ++# slice d15 d0 value) dcache
-    SB -> replace address (mem24 ++# slice d7  d0 value) dcache
+    SW -> replace address' value dcache
+    SH -> replace address' (slice d15 d0 value ++# mem16) dcache
+    SB -> replace address' (slice d7  d0 value ++# mem24) dcache
     where
-        mem = dcache !! address
-        mem16 = slice d31 d16 mem
-        mem24 = slice d31 d8 mem
+        address' = shiftR address 2
+        mem = dcache !! address'
+        mem16 = slice d15 d0 mem
+        mem24 = slice d23 d0 mem
 
 -- memory :: Vec 16 XTYPE -> MemoryResult -> (Vec 16 XTYPE, Result)
 memory dcache memRes = case memRes of

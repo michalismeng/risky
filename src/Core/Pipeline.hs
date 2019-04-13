@@ -35,16 +35,3 @@ cycle (CPUState state registers, icache, dcache) = case state of
         where
             registers' = writeback registers result
             state' = Fetch
-
-cpuHardware initialCPU initialProg initialData = output
-    where
-        state = register (initialCPU, initialProg, initialData) state'
-        state' = fmap Core.Pipeline.cycle state
-
-        output = fmap getOutput state'
-        getOutput (CPUState s regs, _, _) = case s of
-            Fetch -> (1, (readRegister regs PC - 4), (readRegister regs (Register 3) ))
-            Decode _ -> (2, (readRegister regs PC - 4), (readRegister regs (Register 3) )) 
-            Execute _ -> (3, (readRegister regs PC - 4), (readRegister regs (Register 3) ))
-            Memory _   -> (4, (readRegister regs PC - 4), (readRegister regs (Register 3) ))
-            WriteBack _ -> (5, (readRegister regs PC - 4), (readRegister regs (Register 3) ))

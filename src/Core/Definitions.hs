@@ -29,7 +29,7 @@ data Register = Register (Index XLEN)
               deriving (Show, Eq)
 
 data Registers = Registers {
-                             general :: Vec 5 XTYPE, 
+                             general :: Vec 32 XTYPE, 
                              pc :: XTYPE }       
                              deriving Show
 
