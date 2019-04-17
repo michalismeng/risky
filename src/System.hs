@@ -44,6 +44,34 @@ func_ICache =
 func_DCache = 
     Nil
 
+ld_hb_ICache = 
+    0b00000000000000000000000010010011 :>
+    0b00000000000000001001000100000011 :>
+    0b00000000010000001001000110000011 :>
+    0b00000000010000001000000010010011 :>
+    0b00000000000000001000001000000011 :>
+    0b00000000000100001000001010000011 :>
+    0b00000000000000000000000001100011 :>
+    Nil
+ld_hb_DCache = 
+    0b00010010001101000001001000110100 :>
+    0b01000101011001110100010101100111 :>
+    0b00000000000000000000000000000000 :>
+    0b00000000000000000000000000000000 :>
+    0b00000000000000000000000000000000 :>
+    0b00000000000000000000000000000000 :>
+    0b00000000000000000000000000000000 :>
+    0b00000000000000000000000000000000 :>
+    0b00000000000000000000000000000000 :>
+    0b00000000000000000000000000000000 :>
+    0b00000000000000000000000000000000 :>
+    0b00000000000000000000000000000000 :>
+    0b00000000000000000000000000000000 :>
+    0b00000000000000000000000000000000 :>
+    0b00000000000000000000000000000000 :>
+    0b00000000000000000000000000000000 :>
+    Nil
+
 cpuHardware initialCPU (initialProg :: Vec 32 XTYPE) (initialData :: Vec 16 XTYPE) = output
     where
         state = register (initialCPU, initialProg, initialData) state'
@@ -55,7 +83,7 @@ cpuHardware initialCPU (initialProg :: Vec 32 XTYPE) (initialData :: Vec 16 XTYP
             _     -> (0, 0, 0)
 
 topEntity :: Clock System Source -> Reset System Asynchronous -> Signal System (BitVector 3, XTYPE, XTYPE)
-topEntity clk rst = withClockReset clk rst $ cpuHardware defaultCPUState (func_ICache ++ repeat 0) (func_DCache ++ repeat 0)
+topEntity clk rst = withClockReset clk rst $ cpuHardware defaultCPUState (ld_hb_ICache ++ repeat 0) (ld_hb_DCache ++ repeat 0)
 
 simpleProgram = 
     Itype   ADD (Register 0) (Register 1) 5               :>              -- R1 = n = 5       

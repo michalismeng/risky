@@ -1,3 +1,6 @@
+# Load words from Data section
+# Register x1 is used for indexing. Registers x2-x5 contain read values.
+
 .data
 	val: .word 0x12341234 0x45674567
 	
