@@ -11,6 +11,9 @@ import Clash.Prelude
 
 import qualified Prelude as P
 
+import Debug.Trace
+
+
 opcode :: XTYPE -> BitVector 7
 opcode = slice d6 d0
 

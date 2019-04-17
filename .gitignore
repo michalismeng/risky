@@ -4,4 +4,5 @@ verilog/*
 *.o
 *.hi
 *.cabal
-*.jar
+# *.jar
+test/outputs/*

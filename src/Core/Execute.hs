@@ -39,6 +39,8 @@ execute instr = case instr of
     ArithmeticE op a b dst      -> NoMemOp $ ChangeReg res dst                            where res = alu op a b
     BranchE     op a b pc off   -> NoMemOp $ ChangeReg (bool pc (pc + off - 4) res) PC    where res = bru op a b
     UtypeE      op a b dst      -> NoMemOp $ ChangeReg res dst                            where res = bool a (a + b) (op == AUIPC)
-    JumpE       op trg pc dst   -> NoMemOp $ ChangeReg2 pc dst res PC                     where res = trg + pc - 4
+    JumpE       op trg pc dst   -> case op of
+                                    JALR  -> NoMemOp $ ChangeReg2 pc dst trg PC
+                                    JAL   -> NoMemOp $ ChangeReg2 pc dst res PC           where res = trg + pc - 4
     LoadE       op base off dst -> ReadMemory op res dst                                  where res = unpack (pack $ base + off)
     StoreE      op base val off -> WriteMemory op res val                                 where res = unpack (pack $ base + off)

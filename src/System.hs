@@ -14,8 +14,48 @@ import Clash.Prelude
 
 import Control.DeepSeq (NFData)
 
--- topEntity :: Clock System Source -> Reset System Asynchronous -> Signal System (BitVector 3, XTYPE, XTYPE)
--- topEntity clk rst = withClockReset clk rst $ cpuHardware defaultCPUState simpleProgramMem defaultDCache
+fib_ICache = 
+    0b00000000000100000000000010010011 :>
+    0b00000000000000000000000100110011 :>
+    0b00000000000100000000000110010011 :>
+    0b00000000011000000000001010010011 :>
+    0b00000000010100011010001100110011 :>
+    0b00000000000000110000110001100011 :>
+    0b00000000000100010000001000110011 :>
+    0b00000000000000010000000010110011 :>
+    0b00000000000000100000000100110011 :>
+    0b00000000000100011000000110010011 :>
+    0b11111110100111111111000001101111 :>
+    0b00000000000000000000000001101111 :>
+    Nil
+fib_DCache = 
+    Nil
+
+
+func_ICache = 
+    0b00000000101000000000000010010011 :>
+    0b00000001100100000000000100010011 :>
+    0b00000000110000000000001011101111 :>
+    0b00000000001000001000001000110011 :>
+    0b00000000000000000000000001101111 :>
+    0b00000000001000001000000110110011 :>
+    0b00000000000000101000000001100111 :>
+    Nil
+func_DCache = 
+    Nil
+
+cpuHardware initialCPU (initialProg :: Vec 32 XTYPE) (initialData :: Vec 16 XTYPE) = output
+    where
+        state = register (initialCPU, initialProg, initialData) state'
+        state' = fmap Core.Pipeline.cycle state
+
+        output = fmap getOutput state
+        getOutput (CPUState s regs, _, _) = case s of
+            Fetch -> (1, (readRegister regs PC), readRegister regs (Register 5))
+            _     -> (0, 0, 0)
+
+topEntity :: Clock System Source -> Reset System Asynchronous -> Signal System (BitVector 3, XTYPE, XTYPE)
+topEntity clk rst = withClockReset clk rst $ cpuHardware defaultCPUState (func_ICache ++ repeat 0) (func_DCache ++ repeat 0)
 
 simpleProgram = 
     Itype   ADD (Register 0) (Register 1) 5               :>              -- R1 = n = 5       
@@ -33,24 +73,6 @@ simpleProgram =
     Branch  BEQ (Register 0) (Register 0) (-2)            :>
     Nil
 
--- simpleProgramMem' :: Vec 16 XTYPE            
--- simpleProgramMem' = fmap encodeInstruction simpleProgram ++ repeat 0     -- ! this function causes a lot of compilation trouble (memory + time) !!!
-
-simpleProgramMem :: Vec 16 XTYPE
-simpleProgramMem = 0b00000000010100000000000010010011 :>
-                   0b00000000000100000000000100010011 :>
-                   0b00000000000000000000000110110011 :>
-                   0b00000000001000011000000110110011 :>
-                   0b00000000000100010000000100010011 :>
-                   0b11111111111100001000000010010011 :>
-                   0b11111110000000001001100011100011 :>
-                   0b00000000001100000000000000100011 :>
-                   0b00000000001100000001001000100011 :>
-                   0b00000000001100000010010000100011 :>
-                   0b11111110000000000000111011100011 :> Nil ++ repeat 0
-
-defaultDCache :: Vec 16 XTYPE
-defaultDCache = repeat 0
 
 defaultCPUState = CPUState Fetch (Registers { general = repeat 0, pc = 0})
 
