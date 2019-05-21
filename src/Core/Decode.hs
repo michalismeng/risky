@@ -151,3 +151,45 @@ decodeInstructionE registers instruction = case instruction of
         readReg x  = unpack (readRegister registers x)
         z1  = 0 :: BitVector 1
         z12 = 0 :: BitVector 12
+
+decodeAluOpcode instr 
+    | rType instr = 
+        case funct3 instr of
+            0b000 -> bool ADD SUB (unpack $ slice d30 d30 instr)
+            0b001 -> SL
+            0b010 -> SLT
+            0b011 -> SLTU
+            0b100 -> XOR
+            0b101 -> bool SRL SRA (unpack $ slice d30 d30 instr)
+            0b110 -> OR
+            0b111 -> AND
+    | iType instr = 
+        case funct3 instr of
+            0b000 -> ADD
+            0b001 -> SL
+            0b010 -> SLT
+            0b011 -> SLTU
+            0b100 -> XOR
+            0b101 -> bool SRL SRA (unpack $ slice d30 d30 instr)
+            0b110 -> OR
+            0b111 -> AND
+    | jalR instr  = ADD
+    | otherwise   = NOP
+
+decodeBruOpcode instr
+    | branch instr = 
+        case funct3 instr of
+            0b000 -> BEQ
+            0b001 -> BNE
+            0b100 -> BLT
+            0b101 -> BGE
+            0b110 -> BLTU
+            0b111 -> BGEU
+            _     -> NOP
+    | otherwise = NOP
+    
+usesAlu, usesRs1, usesRs2, usesRd :: XTYPE -> Bool
+usesAlu instr = iType instr || rType instr
+usesRs1 instr = jalR instr || branch instr || load instr || store instr || iType instr || rType instr
+usesRs2 instr = branch instr || store instr || rType instr
+usesRd  instr = lui instr || auipc instr || jal instr || jalR instr || load instr || iType instr || rType instr

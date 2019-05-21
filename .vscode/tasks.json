@@ -24,6 +24,27 @@
             "problemMatcher": [],
         },
         {
+            "label": "build-waveforms",
+            "type": "shell",
+            "command": "iverilog verilog/cpu.v verilog/System/*.v -o verilog/cpu",
+            "dependsOn": ["build-verilog"],            
+            "problemMatcher": [],
+        },
+        {
+            "label": "run-vvp",
+            "type": "shell",
+            "command": "vvp verilog/cpu",
+            "dependsOn": ["build-waveforms"],            
+            "problemMatcher": [],
+        },
+        {
+            "label": "simulate",
+            "type": "shell",
+            "command": "gtkwave verilog/dump.vcd",
+            "dependsOn": ["run-vvp"],
+            "problemMatcher": [],
+        },
+        {
             "label": "test",
             "type": "shell",
             "command": "stack exec -- runhaskell test/Spec.hs",

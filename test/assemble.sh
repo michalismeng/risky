@@ -12,7 +12,7 @@ do
 
     > $o_data
     > $o_text
-    ./rars.jar a nc dump .text BinaryText $o_text dump .data BinaryText $o_data $input
+    java -jar ./rars.jar a nc dump .text BinaryText $o_text dump .data BinaryText $o_data $input
 
     head -16 $o_data | awk '{print "  0b"$0}' | awk '{print $0" :>"}' | sponge $o_data
     echo "${f%.*}_DCache = " | cat - $o_data | sponge $o_data

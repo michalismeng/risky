@@ -13,6 +13,6 @@ loop:
 	add x1, x2, x0
 	add x2, x4, x0
 	addi x3, x3, 1
-	j loop
+	beq x0, x0, loop
 	
-halt: 	j halt
+halt: 	beq x0, x0, halt

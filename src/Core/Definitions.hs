@@ -132,7 +132,7 @@ irAssoc = (0b000, ADD)  :>
           (0b110, OR)   :> 
           (0b111, AND)  :> 
           (0b001, SL)   :> 
-          (0b101, SRA)  :> Nil
+          (0b101, SRA)   :> Nil
           ++ repeat (0b111, NOP)
 
 bAssoc :: Vec 8 (XOpcode2, Opcode)
