@@ -1,0 +1,18 @@
+{-# LANGUAGE NoImplicitPrelude, DataKinds, BinaryLiterals #-}
+
+module Out.Nat_sum where
+
+import Clash.Prelude
+
+nat_sum_ICache = 
+  (0b00000000010100000000000010010011 :: BitVector 32) :>
+  (0b00000000000100000000000100010011 :: BitVector 32) :>
+  (0b00000000000000000000000110110011 :: BitVector 32) :>
+  (0b00000000001100010000000110110011 :: BitVector 32) :>
+  (0b00000000000100010000000100010011 :: BitVector 32) :>
+  (0b11111111111100001000000010010011 :: BitVector 32) :>
+  (0b11111110000000001001101011100011 :: BitVector 32) :>
+  (0b00000000000000000000000001100011 :: BitVector 32) :>
+  Nil
+nat_sum_DCache = 
+  Nil

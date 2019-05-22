@@ -1,0 +1,17 @@
+{-# LANGUAGE NoImplicitPrelude, DataKinds, BinaryLiterals #-}
+
+module Out.Func where
+
+import Clash.Prelude
+
+func_ICache = 
+  (0b00000000101000000000000010010011 :: BitVector 32) :>
+  (0b00000001100100000000000100010011 :: BitVector 32) :>
+  (0b00000000110000000000001011101111 :: BitVector 32) :>
+  (0b00000000001000001000001000110011 :: BitVector 32) :>
+  (0b00000000000000000000000001101111 :: BitVector 32) :>
+  (0b00000000001000001000000110110011 :: BitVector 32) :>
+  (0b00000000000000101000000001100111 :: BitVector 32) :>
+  Nil
+func_DCache = 
+  Nil

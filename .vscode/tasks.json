@@ -47,7 +47,7 @@
         {
             "label": "test",
             "type": "shell",
-            "command": "stack exec -- runhaskell test/Spec.hs",
+            "command": "cd test && stack exec -- runhaskell Spec.hs",
             "problemMatcher": [],
         },
         {
