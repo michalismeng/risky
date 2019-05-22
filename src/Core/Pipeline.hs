@@ -104,32 +104,56 @@ instructionExecute :: Signal dom XTYPE
     -> Signal dom ForwardingStage
     -> Signal dom (BitVector 32)
     -> Signal dom (BitVector 32)
-    -> (Signal dom (BitVector 32), Signal dom Bool, Signal dom Bool)
-instructionExecute instruction pc2 rs1Data rs2Data aluUsesRs1 aluUsesRs2 fwType1 fwType2 fwMem fwWB = (aluRes, bruRes, writesToRegFile)
+    -> (Signal dom (BitVector 32), Signal dom Bool, Signal dom (BitVector 32), Signal dom Bool)
+instructionExecute instruction pc2 rs1Data rs2Data aluUsesRs1 aluUsesRs2 fwType1 fwType2 fwMem fwWB = (executeResult, bruRes, controlTarget, writesToRegFile)
     where
         aluOpcode = decodeAluOpcode <$> instruction     --TODO: perhaps move these to ID stage
         bruOpcode = decodeBruOpcode <$> instruction
         writesToRegFile = usesRd <$> instruction
-        
-        immData = (resize . iImm) <$> instruction
+
+        -- ALU operands
+
+        immData = mux (auipc <$> instruction) luiRes ((resize . iImm) <$> instruction)      -- auipc uses same immediate as LUI
         effectiveRs1 = fwMux <$> fwType1 <*> rs1Data <*> fwMem <*> fwWB
         effectiveRs2 = fwMux <$> fwType2 <*> rs2Data <*> fwMem <*> fwWB
 
         aluOperand1 = mux aluUsesRs1 effectiveRs1 pc2
         aluOperand2 = mux aluUsesRs2 effectiveRs2 immData
+
+        -- Branch targets and execution results
+
+        branchTrg = shiftL <$> ((signExtend . bImm) <$> instruction) <*> 1
+        jalTrg    = shiftL <$> ((signExtend . jImm) <$> instruction) <*> 1
+
+        calcLui instr = uImm instr ++# (0 :: BitVector 12)
+        luiRes = calcLui <$> instruction
         
-        aluRes = alu2 <$> aluOpcode <*> aluOperand1 <*> aluOperand2
+        aluRes = alu2 <$> aluOpcode <*> aluOperand1 <*> aluOperand2         -- when executing auipc operands will be (pc2, immData) 
         bruRes = bru2 <$> bruOpcode <*> aluOperand1 <*> aluOperand2
+
+        executeResult = executeResultMux <$> instruction <*> aluRes <*> luiRes <*> pc2
+        controlTarget = controlTargetMux <$> instruction <*> branchTrg <*> jalTrg <*> aluRes <*> pc2
 
         fwMux fwType rs ex mem = case fwType of
             FwNone  -> rs
             FwEx    -> ex
             FwMem   -> mem
 
-pipeline 
-    :: forall dom sync gated. HiddenClockReset dom gated sync
-    => Signal dom XTYPE 
-    -> (Signal dom (Vec 32 XTYPE), Signal dom XTYPE)
+        controlTargetMux instr bTarget jTarget jrTarget pc
+            | branch instr  = bTarget
+            | jal instr     = jTarget
+            | jalR instr    = jrTarget - pc
+            | otherwise     = 0
+
+        executeResultMux instr aluRes luiRes pc
+            | jal instr || jalR instr = pc + 4
+            | lui instr = luiRes
+            | otherwise = aluRes
+
+-- pipeline 
+--     :: forall dom sync gated. HiddenClockReset dom gated sync
+--     => Signal dom XTYPE 
+--     -> (Signal dom (Vec 32 XTYPE), Signal dom XTYPE)
 pipeline fromInstructionMem = (theRegFile, next_pc_0)
     where
         -- Stage 0
@@ -138,7 +162,7 @@ pipeline fromInstructionMem = (theRegFile, next_pc_0)
         -- Stage 1
         pc_1 = register 0 $ mux shouldStall pc_1 pc_0
         instr_1 = register 0 $ mux shouldStall 0 instr_0
-        theRegFile = regFile rdAddr_4 regWriteEnable_4 rdData_4  -- we write first the result of WB and then read rs1 and rs2
+        theRegFile = regFile rdAddr_4 regWriteEnable_4 rdData_4  -- we first write the result of WB and then read rs1 and rs2
 
         (rs1Data_1, rs2Data_1, controlTransfer_1, shouldStall, aluUsesRs1_1, aluUsesRs2_1, fwdRs1_1, fwdRs2_2) 
                 = instructionDecode instr_1 instr_2 instr_3 theRegFile
@@ -154,26 +178,10 @@ pipeline fromInstructionMem = (theRegFile, next_pc_0)
         forwardRs2_2 = register FwNone fwdRs2_2
         ctlTransf_2 = register False controlTransfer_1
         controlTransfer_2 = ctlTransf_2 .&&. (bruRes_2 .||. jal <$> instr_2 .||. jalR <$> instr_2)
-
-        branchTarget_2 = shiftL <$> ((signExtend . bImm) <$> instr_2) <*> 1
-        jalTarget_2    = shiftL <$> ((signExtend . jImm) <$> instr_2) <*> 1
-
-        calcControlTarget instr bTarget jTarget jrTarget pc
-            | branch instr  = bTarget
-            | jal instr     = jTarget
-            | jalR instr    = jrTarget - pc
-            | otherwise     = 0
-
-        calcExecRes instr aluRes pcNext
-            | jal instr || jalR instr = pcNext
-            | otherwise = aluRes
            
-        (aluRes_2, bruRes_2, writesToRegFile_2) = 
+        (execRes_2, bruRes_2, controlTarget_2, writesToRegFile_2) = 
             instructionExecute instr_2 pc_2 rs1Data_2 rs2Data_2 aluUsesRs1_2 aluUsesRs2_2 forwardRs1_2 forwardRs2_2 execRes_3 rdData_4  
                 
-        execRes_2 = calcExecRes <$> instr_2 <*> aluRes_2 <*> (pc_2 + 4)
-        controlTarget_2 = calcControlTarget <$> instr_2 <*> branchTarget_2 <*> jalTarget_2 <*> aluRes_2 <*> pc_2
-
         -- Stage 3
         pc_3 = register 0 pc_2
         instr_3 = register 0 instr_2

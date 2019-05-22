@@ -20,7 +20,7 @@
         {
             "label": "build-verilog",
             "type": "shell",
-            "command": "stack exec -- clash src/System.hs -isrc --verilog -odir obj -hidir obj",
+            "command": "stack exec -- clash src/System.hs -i{src,test} --verilog -odir obj -hidir obj",
             "problemMatcher": [],
         },
         {
@@ -53,7 +53,7 @@
         {
             "label": "clean",
             "type": "shell",
-            "command": "stack clean && rm -rf obj && rm -rf verilog",
+            "command": "stack clean && rm -rf obj && rm -rf verilog/System && rm -f verilog/cpu verilog/dump.vcd",
             "problemMatcher": [],
         }
     ]

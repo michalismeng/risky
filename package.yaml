@@ -42,31 +42,7 @@ dependencies:
 library:
   source-dirs: 
   - src
-  exposed-modules:
-  - Core.Definitions
-  - Core.RegFile
-  - Core.Fetch
-  - Core.Decode
-  - Core.Execute
-  - Core.Memory
-  - Core.Writeback
-  - Core.Pipeline
-
-# executable:
-#   main: System.hs
-#   source-dirs: src
-#   dependencies:
-#   - base >= 4.7 && < 5
-#   - deepseq
-#   - clash-lib
-#   - clash-ghc
-#   - clash-prelude
-#   - hspec
-#   - singletons
-#   - ghc-typelits-natnormalise
-#   - ghc-typelits-knownnat
-#   - ghc-typelits-extra
-#   build-tools: clash-ghc
+  - test
 
 # tests:
 #   spec:

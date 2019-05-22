@@ -174,6 +174,7 @@ decodeAluOpcode instr
             0b110 -> OR
             0b111 -> AND
     | jalR instr  = ADD
+    | auipc instr = ADD
     | otherwise   = NOP
 
 decodeBruOpcode instr
