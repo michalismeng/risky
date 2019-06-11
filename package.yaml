@@ -37,7 +37,6 @@ dependencies:
 - mockery >= 0.3
 - QuickCheck
 - hspec == 2.*
-- text
 
 library:
   source-dirs: 

@@ -11,60 +11,30 @@ import Core.Memory
 import Core.Writeback
 import Core.Definitions
 
-import qualified Data.Text as T
-import Data.Monoid
-
-import GHC.Generics
 import Clash.Prelude
-
-cycle (CPUState state registers, icache, dcache) = case state of
-    Fetch -> (CPUState state' registers', icache, dcache) 
-        where 
-            state' = Decode (fetchInstruction registers icache)
-            registers' = writeRegister registers PC (pc registers + 4)
-
-    Decode instr -> (CPUState state' registers, icache, dcache) 
-        where 
-            instrD = decodeInstruction instr
-            state' = Execute (decodeInstructionE registers instrD)
-
-    Execute instrE -> (CPUState state' registers, icache, dcache) 
-        where
-            result = execute instrE
-            state' = Memory result
-    
-    Memory memResult -> (CPUState state' registers, icache, dcache')
-        where
-            (dcache', result) = memory dcache memResult 
-            state' = WriteBack result
-            
-    WriteBack result -> (CPUState state' registers', icache, dcache)
-        where
-            registers' = writeback registers result
-            state' = Fetch
-
-data ForwardingStage 
-    = FwEx
-    | FwMem
-    | FwNone
 
 instructionFetch instruction branchInstr controlTransfer_1 controlTransfer_2 controlTarget_2 = (pc, next_pc, instr)
     where
         pc = register (-4) next_pc
-        next_pc = calcNextPC <$> pc <*> branchInstr <*> controlTransfer_1 <*> controlTransfer_2 <*> controlTarget_2
+        next_pc = nextPCMux <$> pc <*> controlTransfer_1 <*> controlTransfer_2 <*> controlTarget_2
         instr = mux (controlTransfer_1 .||. controlTransfer_2) 0 instruction
 
         -- When jumping, current pc points to the next instruction (assume not taken branch)
         -- output NOP for one cycle -> branch instruction then enters execute stage
         -- if branch is taken -> NOP for another cycle (the current one) since the fetched instruction is bad (assumed not taken branch)
 
-        calcNextPC curPC instr2 ctl_1 ctl_2 trg = case (ctl_1, ctl_2) of
-            (False, True)  -> curPC - 4 + trg
+        nextPCMux curPC ctl_1 ctl_2 trg = case (ctl_1, ctl_2) of
+            (False, True)  -> trg
             (False, False) -> curPC + 4
             (True, _)      -> curPC
 
-instructionDecode :: Signal dom XTYPE -> Signal dom XTYPE -> Signal dom XTYPE -> Signal dom (Vec 32 (BitVector 32))
-    -> (Signal dom XTYPE, Signal dom XTYPE, Signal dom Bool, Signal dom Bool, Signal dom Bool, Signal dom Bool, Signal dom ForwardingStage, Signal dom ForwardingStage)
+instructionDecode :: Signal dom XTYPE
+    -> Signal dom XTYPE
+    -> Signal dom XTYPE
+    -> Signal dom (Vec 32 XTYPE)
+    -> (Signal dom XTYPE, Signal dom XTYPE, Signal dom Bool,
+        Signal dom Bool, Signal dom Bool, Signal dom Bool,
+        Signal dom ForwardingStage, Signal dom ForwardingStage)
 instructionDecode instruction nextInstruction nnextInstruction regFile = (rs1Data, rs2Data, controlTransfer, shouldStall, alu1Register, alu2Register, fwdRs1, fwdRs2)
     where 
         rs1Addr = rs1 <$> instruction
@@ -84,27 +54,26 @@ instructionDecode instruction nextInstruction nnextInstruction regFile = (rs1Dat
         alu1Register = usesRs1 <$> instruction
         alu2Register = usesRs2 <$> instruction
 
-        fwdRs1 = caclForwardingStage <$> rs1Addr' <*> nextInstruction <*> nnextInstruction where rs1Addr' = unpack <$> rs1Addr
-        fwdRs2 = caclForwardingStage <$> rs2Addr' <*> nextInstruction <*> nnextInstruction where rs2Addr' = unpack <$> rs2Addr
+        fwdRs1 = forwardingStageMux <$> rs1Addr' <*> nextInstruction <*> nnextInstruction where rs1Addr' = unpack <$> rs1Addr
+        fwdRs2 = forwardingStageMux <$> rs2Addr' <*> nextInstruction <*> nnextInstruction where rs2Addr' = unpack <$> rs2Addr
 
-        caclForwardingStage :: Index 32 -> XTYPE -> XTYPE -> ForwardingStage
-        caclForwardingStage rsAddr instrEx instrMem
-            | rsAddr == 0                                       = FwNone
+        forwardingStageMux rsAddr instrEx instrMem
+            | (rsAddr :: Index 32) == 0                         = FwNone
             | unpack (rd instrEx)  == rsAddr && usesRd instrEx  = FwEx
             | unpack (rd instrMem) == rsAddr && usesRd instrMem = FwMem
             | otherwise                                         = FwNone
 
 instructionExecute :: Signal dom XTYPE
-    -> Signal dom (BitVector 32)
-    -> Signal dom (BitVector 32)
-    -> Signal dom (BitVector 32)
+    -> Signal dom XTYPE
+    -> Signal dom XTYPE
+    -> Signal dom XTYPE
     -> Signal dom Bool
     -> Signal dom Bool
     -> Signal dom ForwardingStage
     -> Signal dom ForwardingStage
-    -> Signal dom (BitVector 32)
-    -> Signal dom (BitVector 32)
-    -> (Signal dom (BitVector 32), Signal dom Bool, Signal dom (BitVector 32), Signal dom Bool)
+    -> Signal dom XTYPE
+    -> Signal dom XTYPE
+    -> (Signal dom XTYPE, Signal dom Bool, Signal dom XTYPE, Signal dom Bool)
 instructionExecute instruction pc2 rs1Data rs2Data aluUsesRs1 aluUsesRs2 fwType1 fwType2 fwMem fwWB = (executeResult, bruRes, controlTarget, writesToRegFile)
     where
         aluOpcode = decodeAluOpcode <$> instruction     --TODO: perhaps move these to ID stage
@@ -113,7 +82,8 @@ instructionExecute instruction pc2 rs1Data rs2Data aluUsesRs1 aluUsesRs2 fwType1
 
         -- ALU operands
 
-        immData = mux (auipc <$> instruction) luiRes ((resize . iImm) <$> instruction)      -- auipc uses same immediate as LUI
+        luiImm = calcLui <$> instruction
+        immData = mux (auipc <$> instruction) luiImm ((resize . iImm) <$> instruction)      -- auipc uses same immediate as LUI
         effectiveRs1 = fwMux <$> fwType1 <*> rs1Data <*> fwMem <*> fwWB
         effectiveRs2 = fwMux <$> fwType2 <*> rs2Data <*> fwMem <*> fwWB
 
@@ -125,14 +95,15 @@ instructionExecute instruction pc2 rs1Data rs2Data aluUsesRs1 aluUsesRs2 fwType1
         branchTrg = shiftL <$> ((signExtend . bImm) <$> instruction) <*> 1
         jalTrg    = shiftL <$> ((signExtend . jImm) <$> instruction) <*> 1
 
-        calcLui instr = uImm instr ++# (0 :: BitVector 12)
-        luiRes = calcLui <$> instruction
+        aluRes = alu <$> aluOpcode <*> aluOperand1 <*> aluOperand2         -- when executing auipc operands will be (pc2, immData) 
+        bruRes = bru <$> bruOpcode <*> aluOperand1 <*> aluOperand2
         
-        aluRes = alu2 <$> aluOpcode <*> aluOperand1 <*> aluOperand2         -- when executing auipc operands will be (pc2, immData) 
-        bruRes = bru2 <$> bruOpcode <*> aluOperand1 <*> aluOperand2
-
-        executeResult = executeResultMux <$> instruction <*> aluRes <*> luiRes <*> pc2
+        executeResult = executeResultMux <$> instruction <*> aluRes <*> luiImm <*> pc2
         controlTarget = controlTargetMux <$> instruction <*> branchTrg <*> jalTrg <*> aluRes <*> pc2
+
+        -- Helper functions
+        
+        calcLui instr = uImm instr ++# (0 :: BitVector 12)
 
         fwMux fwType rs ex mem = case fwType of
             FwNone  -> rs
@@ -140,9 +111,9 @@ instructionExecute instruction pc2 rs1Data rs2Data aluUsesRs1 aluUsesRs2 fwType1
             FwMem   -> mem
 
         controlTargetMux instr bTarget jTarget jrTarget pc
-            | branch instr  = bTarget
-            | jal instr     = jTarget
-            | jalR instr    = jrTarget - pc
+            | branch instr  = pc + bTarget
+            | jal instr     = pc + jTarget
+            | jalR instr    = jrTarget
             | otherwise     = 0
 
         executeResultMux instr aluRes luiRes pc
@@ -150,11 +121,7 @@ instructionExecute instruction pc2 rs1Data rs2Data aluUsesRs1 aluUsesRs2 fwType1
             | lui instr = luiRes
             | otherwise = aluRes
 
--- pipeline 
---     :: forall dom sync gated. HiddenClockReset dom gated sync
---     => Signal dom XTYPE 
---     -> (Signal dom (Vec 32 XTYPE), Signal dom XTYPE)
-pipeline fromInstructionMem = (theRegFile, next_pc_0)
+pipeline fromInstructionMem fromDataMem = (theRegFile, next_pc_0, readAddr_3, writeAddr_3, writeValue_3, writeEnable_3)
     where
         -- Stage 0
         (pc_0, next_pc_0, instr_0) = instructionFetch fromInstructionMem instr_2 controlTransfer_1 controlTransfer_2 controlTarget_2
@@ -186,6 +153,10 @@ pipeline fromInstructionMem = (theRegFile, next_pc_0)
         pc_3 = register 0 pc_2
         instr_3 = register 0 instr_2
         execRes_3 = register 0 execRes_2
+        readAddr_3 = pc_3
+        writeAddr_3 = readAddr_3
+        writeValue_3 = readAddr_3
+        writeEnable_3 = ctlTransf_2
         regWriteEnable_3 = register False writesToRegFile_2
 
         -- Stage 4

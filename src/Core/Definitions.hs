@@ -109,6 +109,11 @@ data CPUActivity
 
 data CPUState = CPUState CPUActivity Registers deriving Show
 
+data ForwardingStage 
+    = FwEx
+    | FwMem
+    | FwNone
+
 op_lui      = 0b0110111 :: BitVector 7
 op_auipc    = 0b0010111 :: BitVector 7
 op_jal      = 0b1101111 :: BitVector 7

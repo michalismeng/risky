@@ -188,6 +188,20 @@ decodeBruOpcode instr
             0b111 -> BGEU
             _     -> NOP
     | otherwise = NOP
+
+decodeMemOpcode instr
+    | load instr =
+        case funct3 instr of
+            0b000 -> LB
+            0b001 -> LH
+            0b010 -> LW
+            0b100 -> LBU
+            0b101 -> LHU
+    | store instr =
+        case funct3 instr of
+            0b000 -> SB
+            0b001 -> SH
+            0b010 -> SW
     
 usesAlu, usesRs1, usesRs2, usesRd :: XTYPE -> Bool
 usesAlu instr = iType instr || rType instr

@@ -29,33 +29,27 @@ firstCycleDef :: (HiddenClockReset dom sync gated, Default a) => Signal dom a ->
 firstCycleDef = firstCycleDef' def
 -----
 
-cpuHardware :: HiddenClockReset dom gated sync => Vec (2 ^ 5) (BitVector 32) -> Signal dom (Vec 10 XTYPE)
-cpuHardware initialProg = output
+cpuHardware :: HiddenClockReset dom gated sync => Vec (2 ^ 5) (BitVector 32) -> Vec (2 ^ 6) (BitVector 32) -> Signal dom (Vec 10 XTYPE)
+cpuHardware initialProg initialMem = output
     where
-        instr_0 = firstCycleDef $ romPow2 initialProg (unpack . resize <$> next_pc_0)
-        (regFile, next_pc) = pipeline instr_0
-        next_pc_0 = shiftR <$> next_pc <*> 2
-        output = bundle $ (readReg <$> regFile <*> 1) :> (readReg <$> regFile <*> 2) :> (readReg <$> regFile <*> 3) :> (readReg <$> regFile <*> 4) :> (readReg <$> regFile <*> 5) :> (readReg <$> regFile <*> 6) :> (readReg <$> regFile <*> 7) :> (readReg <$> regFile <*> 8) :> (readReg <$> regFile <*> 9) :> (readReg <$> regFile <*> 10) :> Nil
+        instruction = firstCycleDef $ romPow2 initialProg (unpack . resize <$> next_pc_0)
 
-test n = P.head $ P.reverse $ sampleN n $ cpuHardware (func_ICache ++ repeat 0)
+        memBaseAddr = 0x400000
+        writeAddr' = shiftR <$> (writeAddr - memBaseAddr) <*> 2
+        write = mux writeEnable (Just <$> bundle ((unpack . resize) <$> writeAddr', writeValue)) (pure Nothing)
+
+        memData = blockRamPow2 initialMem ((unpack . resize) <$> readAddr) write
+
+        (regFile, next_pc, readAddr, writeAddr, writeValue, writeEnable) = pipeline instruction memData
+        next_pc_0 = shiftR <$> next_pc <*> 2
+        output = bundle $ (readReg <$> regFile <*> 1) :> (readReg <$> regFile <*> 2)  :> 
+                          (readReg <$> regFile <*> 3) :> (readReg <$> regFile <*> 4)  :> 
+                          (readReg <$> regFile <*> 5) :> (readReg <$> regFile <*> 6)  :> 
+                          (readReg <$> regFile <*> 7) :> (readReg <$> regFile <*> 8)  :> 
+                          (readReg <$> regFile <*> 9) :> (readReg <$> regFile <*> 10) :> Nil
 
 topEntity :: Clock System Source -> Reset System Asynchronous -> Signal System (Vec 10 XTYPE)
-topEntity clk rst = withClockReset clk rst $ cpuHardware (simple_lui_ICache ++ repeat 0)
+topEntity clk rst = withClockReset clk rst $ cpuHardware (simple_lui_ICache ++ repeat 0) (simple_lui_DCache ++ repeat 0)
 
-simpleProgram = 
-    Itype   ADD (Register 0) (Register 1) 5               :>        -- Fails without forwarding       
-    Itype   ADD (Register 0) (Register 2) 6               :>
-    Itype   ADD (Register 0) (Register 2) 6               :>
-    Rtype   ADD (Register 0) (Register 2) (Register 3) 0  :>
-    Nil
-
-branchProgram = 
-    Itype   ADD (Register 0) (Register 1) 4               :>
-    Itype   ADD (Register 0) (Register 2) 5               :>
-    Branch  BEQ (Register 0) (Register 0) 4               :>
-    Itype   ADD (Register 0) (Register 3) 6               :>
-    Itype   ADD (Register 0) (Register 4) 7               :>
-    Nil
-
-simpleProgMem = encodeInstruction <$> simpleProgram  
-branchProgMem = encodeInstruction <$> branchProgram  
+-- adjustReadBlockRAM :: XTYPE -> Unsigned 5
+adjustBlockRAM readAddr = unpack $ slice d4 d0 readAddr
