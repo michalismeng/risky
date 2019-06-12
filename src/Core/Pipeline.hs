@@ -13,6 +13,8 @@ import Core.Definitions
 
 import Clash.Prelude
 
+import Data.Bool
+
 instructionFetch instruction branchInstr controlTransfer_1 controlTransfer_2 controlTarget_2 = (pc, next_pc, instr)
     where
         pc = register (-4) next_pc
@@ -145,19 +147,62 @@ pipeline fromInstructionMem fromDataMem = (theRegFile, next_pc_0, readAddr_3, wr
         forwardRs2_2 = register FwNone fwdRs2_2
         ctlTransf_2 = register False controlTransfer_1
         controlTransfer_2 = ctlTransf_2 .&&. (bruRes_2 .||. jal <$> instr_2 .||. jalR <$> instr_2)
+
+        accessMem_2 = load <$> instr_2 .||. store <$> instr_2
            
         (execRes_2, bruRes_2, controlTarget_2, writesToRegFile_2) = 
             instructionExecute instr_2 pc_2 rs1Data_2 rs2Data_2 aluUsesRs1_2 aluUsesRs2_2 forwardRs1_2 forwardRs2_2 execRes_3 rdData_4  
                 
-        -- Stage 3
+        -- Stage 3 (the word at address 'readAddr_3' is read from the data cache and is available for processing here)
         pc_3 = register 0 pc_2
         instr_3 = register 0 instr_2
         execRes_3 = register 0 execRes_2
-        readAddr_3 = pc_3
+        regWriteEnable_3 = register False writesToRegFile_2
+
+        readAddr_3 = execRes_2
         writeAddr_3 = readAddr_3
         writeValue_3 = readAddr_3
         writeEnable_3 = ctlTransf_2
-        regWriteEnable_3 = register False writesToRegFile_2
+
+        byteStart_3 = slice d1 d0 <$> readAddr_3
+        byteCount_3 = getByteCount <$> (funct3 <$> instr_3)
+        isSigned_3 = slice d3 d3 <$> instr_3
+        getByteCount :: BitVector 3 -> BitVector 3
+        getByteCount f3 = case slice d1 d0 f3 of
+            0b00 -> 1
+            0b01 -> 2
+            0b10 -> 4
+            _    -> 0
+
+        isMisaligned_3 = getMisalignedHard <$> byteStart_3 <*> byteCount_3
+
+        -- Soft misalignment can be neglected
+        getMisalignedSoft start count = case start of
+            0b00 -> False
+            0b01 -> count == 4 || count == 2
+            0b10 -> count == 4
+            0b11 -> count == 4 || count == 2
+        
+        -- Hard misalignment requires stall to fetch data (2-cycle fetch)
+        getMisalignedHard start count = case start of
+            0b00 -> False
+            0b01 -> count == 4
+            0b10 -> count == 4
+            0b11 -> count == 4 || count == 2
+
+        getMemData :: XTYPE -> Bool -> BitVector 3 -> BitVector 3 -> XTYPE
+        getMemData datum signed start count = case count of
+            1 -> resize8 $ slice d7 d0 datum'
+            2 -> resize16 $ slice d15 d0 datum'
+            4 -> resize32 $ slice d31 d0 datum'
+            _ -> datum 
+            where 
+                datum' = shiftR (u datum) amt
+                u x = unpack $ pack x :: XUnsigned
+                amt = unpack $ zeroExtend $ (4 - start)
+                resize8 = bool resize zeroExtend signed
+                resize16 = bool resize zeroExtend signed
+                resize32 = bool resize zeroExtend signed
 
         -- Stage 4
         pc_4 = register 0 pc_3
