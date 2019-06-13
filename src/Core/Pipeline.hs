@@ -51,7 +51,7 @@ instructionDecode instruction nextInstruction nnextInstruction regFile = (rs1Dat
         -- stall when the next instruction is a load with the same destination register as one of the source registers of this instruction
         shouldStall = (load <$> nextInstruction)                             .&&.
                     (((rs1Addr .==. rdAddr) .&&. (usesRs1 <$> instruction) ) .||. 
-                     ((rs2Addr .==. rdAddr) .&&. (usesRs2 <$> instruction) )) 
+                     ((rs2Addr .==. rdAddr) .&&. (usesRs2 <$> instruction) )) .&&. (pure False)
 
         alu1Register = usesRs1 <$> instruction
         alu2Register = usesRs2 <$> instruction
@@ -123,7 +123,7 @@ instructionExecute instruction pc2 rs1Data rs2Data aluUsesRs1 aluUsesRs2 fwType1
             | lui instr = luiRes
             | otherwise = aluRes
 
-pipeline fromInstructionMem fromDataMem = (theRegFile, next_pc_0, readAddr_3, writeAddr_3, writeValue_3, writeEnable_3)
+pipeline fromInstructionMem fromDataMem = (theRegFile, next_pc_0, readAddr_2, writeValue_3, writeEnable_3)
     where
         -- Stage 0
         (pc_0, next_pc_0, instr_0) = instructionFetch fromInstructionMem instr_2 controlTransfer_1 controlTransfer_2 controlTarget_2
@@ -151,22 +151,25 @@ pipeline fromInstructionMem fromDataMem = (theRegFile, next_pc_0, readAddr_3, wr
         accessMem_2 = load <$> instr_2 .||. store <$> instr_2
            
         (execRes_2, bruRes_2, controlTarget_2, writesToRegFile_2) = 
-            instructionExecute instr_2 pc_2 rs1Data_2 rs2Data_2 aluUsesRs1_2 aluUsesRs2_2 forwardRs1_2 forwardRs2_2 execRes_3 rdData_4  
+            instructionExecute instr_2 pc_2 rs1Data_2 rs2Data_2 aluUsesRs1_2 aluUsesRs2_2 forwardRs1_2 forwardRs2_2 memRes_3 rdData_4  
+
+        readAddr_2 = execRes_2
                 
         -- Stage 3 (the word at address 'readAddr_3' is read from the data cache and is available for processing here)
         pc_3 = register 0 pc_2
         instr_3 = register 0 instr_2
         regWriteEnable_3 = register False writesToRegFile_2
         isLoad_3 = load <$> instr_3
+        isStore_3 = store <$> instr_3
+        execRes_3 = register 0 execRes_2
 
-        readAddr_3 = execRes_2
-        writeAddr_3 = readAddr_3
-        writeValue_3 = readAddr_3
-        writeEnable_3 = ctlTransf_2
+        readAddr_3 = register 0 readAddr_2
+        writeValue_3 = execRes_3
+        writeEnable_3 = isStore_3
 
         byteStart_3 = slice d1 d0 <$> readAddr_3
         byteCount_3 = getByteCount <$> (funct3 <$> instr_3)
-        isSigned_3 = slice d3 d3 <$> instr_3
+        isUnsigned_3 = slice d2 d2 <$> (funct3 <$> instr_3)
         getByteCount :: BitVector 3 -> BitVector 3
         getByteCount f3 = case slice d1 d0 f3 of
             0b00 -> 1
@@ -190,29 +193,29 @@ pipeline fromInstructionMem fromDataMem = (theRegFile, next_pc_0, readAddr_3, wr
             0b10 -> count == 4
             0b11 -> count == 4 || count == 2
 
-        memRead_3 = getMemData <$> fromDataMem <*> isSigned_3 <*> byteStart_3 <*> byteCount_3 
+        memRead_3 = getMemData <$> fromDataMem <*> isUnsigned_3 <*> byteStart_3 <*> byteCount_3 
 
         getMemData :: XTYPE -> BitVector 1 -> BitVector 2 -> BitVector 3 -> XTYPE
-        getMemData datum signed start count = case count of
+        getMemData datum unsigned start count = case count of
             1 -> resize8 $ slice d7 d0 datum'
             2 -> resize16 $ slice d15 d0 datum'
             4 -> resize32 $ slice d31 d0 datum'
             _ -> datum 
             where 
-                datum' = shiftR (u datum) amt
+                datum' = shiftL (u datum) amt
                 u x = unpack $ pack x :: XUnsigned
-                amt = unpack $ zeroExtend $ (4 - start)
-                resize8 = bool resize zeroExtend isSigned
-                resize16 = bool resize zeroExtend isSigned
-                resize32 = bool resize zeroExtend isSigned
-                isSigned = signed == 1
+                amt = unpack $ zeroExtend $ start
+                resize8 = bool  zeroExtend resize isUnsigned
+                resize16 = bool zeroExtend resize isUnsigned
+                resize32 = bool zeroExtend resize isUnsigned
+                isUnsigned = unsigned == 1
 
-        execRes_3 = mux isLoad_3 memRead_3 (register 0 execRes_2)        
+        memRes_3 = mux isLoad_3 memRead_3 execRes_3   
 
         -- Stage 4
         pc_4 = register 0 pc_3
         instr_4 = register 0 instr_3
-        execRes_4 = register 0 execRes_3
+        execRes_4 = register 0 memRes_3
         rdAddr_4 = (unpack . rd) <$> instr_4
         regWriteEnable_4 = register False regWriteEnable_3
 
