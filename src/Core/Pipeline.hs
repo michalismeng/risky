@@ -197,18 +197,29 @@ pipeline fromInstructionMem fromDataMem = (theRegFile, next_pc_0, readAddr_2, wr
 
         getMemData :: XTYPE -> BitVector 1 -> BitVector 2 -> BitVector 3 -> XTYPE
         getMemData datum unsigned start count = case count of
-            1 -> resize8 $ slice d7 d0 datum'
-            2 -> resize16 $ slice d15 d0 datum'
-            4 -> resize32 $ slice d31 d0 datum'
-            _ -> datum 
+            1 -> resize8 $ slice d31 d24 datum8
+            2 -> resize16 $ slice d31 d16 datum16
+            4 -> resize32 $ slice d31 d0 datum32
+            _ -> 1 
             where 
-                datum' = shiftL (u datum) amt
                 u x = unpack $ pack x :: XUnsigned
-                amt = unpack $ zeroExtend $ start
-                resize8 = bool  zeroExtend resize isUnsigned
+                datum8 = shiftL (u datum) (unpack $ zeroExtend $ shamt8)
+                datum16 = shiftL (u datum) (unpack $ zeroExtend $ shamt16)
+                datum32 = datum
+                resize8 =  bool zeroExtend resize isUnsigned
                 resize16 = bool zeroExtend resize isUnsigned
                 resize32 = bool zeroExtend resize isUnsigned
                 isUnsigned = unsigned == 1
+                shamt16 = case start of
+                    0b00 -> 2 * 8
+                    0b01 -> 1 * 8       -- softly unaligned (resides in the 4-byte word read from memory. we can cope with that)
+                    0b10 -> 0 * 8
+                    _    -> 0 :: BitVector 5
+                shamt8 = case start of
+                    0b00 -> 3 * 8
+                    0b01 -> 2 * 8
+                    0b10 -> 1 * 8
+                    0b11 -> 0 * 0 :: BitVector 5
 
         memRes_3 = mux isLoad_3 memRead_3 execRes_3   
 
