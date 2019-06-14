@@ -193,22 +193,16 @@ pipeline fromInstructionMem fromDataMem = (theRegFile, next_pc_0, readAddr_2, wr
             0b10 -> count == 4
             0b11 -> count == 4 || count == 2
 
-        memRead_3 = getMemData <$> fromDataMem <*> isUnsigned_3 <*> byteStart_3 <*> byteCount_3 
-
-        getMemData :: XTYPE -> BitVector 1 -> BitVector 2 -> BitVector 3 -> XTYPE
         getMemData datum unsigned start count = case count of
-            1 -> resize8 $ slice d31 d24 datum8
-            2 -> resize16 $ slice d31 d16 datum16
-            4 -> resize32 $ slice d31 d0 datum32
-            _ -> 1 
+            1 -> (bool signExtend zeroExtend isUnsigned) $ slice d31 d24 datum8
+            2 -> (bool signExtend zeroExtend isUnsigned) $ slice d31 d16 datum16
+            4 ->                                           slice d31 d0 datum32
+            _ ->                                           1                    -- error, should never happen 
             where 
                 u x = unpack $ pack x :: XUnsigned
                 datum8 = shiftL (u datum) (unpack $ zeroExtend $ shamt8)
                 datum16 = shiftL (u datum) (unpack $ zeroExtend $ shamt16)
                 datum32 = datum
-                resize8 =  bool zeroExtend resize isUnsigned
-                resize16 = bool zeroExtend resize isUnsigned
-                resize32 = bool zeroExtend resize isUnsigned
                 isUnsigned = unsigned == 1
                 shamt16 = case start of
                     0b00 -> 2 * 8
@@ -221,6 +215,7 @@ pipeline fromInstructionMem fromDataMem = (theRegFile, next_pc_0, readAddr_2, wr
                     0b10 -> 1 * 8
                     0b11 -> 0 * 0 :: BitVector 5
 
+        memRead_3 = getMemData <$> fromDataMem <*> isUnsigned_3 <*> byteStart_3 <*> byteCount_3 
         memRes_3 = mux isLoad_3 memRead_3 execRes_3   
 
         -- Stage 4
