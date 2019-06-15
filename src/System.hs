@@ -38,9 +38,9 @@ cpuHardware initialProg initialMem = output
         readAddr'  = shiftR <$> (readAddr - memBaseAddr) <*> 2 
         writeAddr'  = shiftR <$> (writeAddr - memBaseAddr) <*> 2 
         write = mux writeEnable (Just <$> bundle ((unpack . resize) <$> writeAddr', writeValue)) (pure Nothing)
-        -- write = Just <$> bundle ((unpack . resize) <$> writeAddr', writeValue)
 
-        memData = firstCycleDef $ blockRamPow2 initialMem ((unpack . resize) <$> readAddr') write
+        memData = firstCycleDef $ readNew (blockRamPow2 initialMem) ((unpack . resize) <$> readAddr') write     -- use readNew to enable read-after-write
+                                                                                                                -- ! compiler finds meta-stability issues
 
         (regFile, next_pc, readAddr, writeAddr, writeValue, writeEnable) = pipeline instruction memData
         next_pc_0 = shiftR <$> (next_pc - 0x400000) <*> 2

@@ -46,7 +46,7 @@ module main();
     end
 
     always@(posedge clk) begin
-        if (counter == 100) $finish;
+        if (counter == 20) $finish;
     end
 
 endmodule
