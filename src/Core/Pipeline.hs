@@ -77,17 +77,18 @@ instructionExecute :: Signal dom XTYPE
     -> Signal dom ForwardingStage
     -> Signal dom XTYPE
     -> Signal dom XTYPE
-    -> (Signal dom XTYPE, Signal dom Bool, Signal dom XTYPE, Signal dom Bool)
-instructionExecute instruction pc2 rs1Data rs2Data aluUsesRs1 aluUsesRs2 fwType1 fwType2 fwMem fwWB = (executeResult, bruRes, controlTarget, writesToRegFile)
+    -> (Signal dom XTYPE, Signal dom Bool, Signal dom XTYPE, Signal dom Bool, Signal dom XTYPE)
+instructionExecute instruction pc2 rs1Data rs2Data aluUsesRs1 aluUsesRs2 fwType1 fwType2 fwMem fwWB = (executeResult, bruRes, controlTarget, writesToRegFile, effectiveRs2)
     where
-        aluOpcode = decodeAluOpcode <$> instruction     --TODO: perhaps move these to ID stage
+        aluOpcode = decodeAluOpcode <$> instruction
         bruOpcode = decodeBruOpcode <$> instruction
         writesToRegFile = usesRd <$> instruction
 
         -- ALU operands
 
         luiImm = calcLui <$> instruction
-        immData = mux (auipc <$> instruction) luiImm ((resize . iImm) <$> instruction)      -- auipc uses same immediate as LUI
+        immData' = mux (auipc <$> instruction) luiImm ((signExtend . iImm) <$> instruction)      -- auipc uses same immediate as LUI
+        immData  = mux (store <$> instruction) ((signExtend . sImm) <$> instruction) immData'
         effectiveRs1 = fwMux <$> fwType1 <*> rs1Data <*> fwMem <*> fwWB
         effectiveRs2 = fwMux <$> fwType2 <*> rs2Data <*> fwMem <*> fwWB
 
@@ -125,7 +126,7 @@ instructionExecute instruction pc2 rs1Data rs2Data aluUsesRs1 aluUsesRs2 fwType1
             | lui instr = luiRes
             | otherwise = aluRes
 
-pipeline fromInstructionMem fromDataMem = (theRegFile, next_pc_0, readAddr_2, writeValue_3, writeEnable_3)
+pipeline fromInstructionMem fromDataMem = (theRegFile, next_pc_0, readAddr_2, writeAddr_3, writeValue_3, writeEnable_3)
     where
         -- Stage 0
         (pc_0, next_pc_0, instr_0) = instructionFetch fromInstructionMem instr_2 controlTransfer_1 controlTransfer_2 controlTarget_2 shouldStall
@@ -153,7 +154,7 @@ pipeline fromInstructionMem fromDataMem = (theRegFile, next_pc_0, readAddr_2, wr
 
         accessMem_2 = load <$> instr_2 .||. store <$> instr_2
            
-        (execRes_2, bruRes_2, controlTarget_2, writesToRegFile_2) = 
+        (execRes_2, bruRes_2, controlTarget_2, writesToRegFile_2, effectiveRs2_2) = 
             instructionExecute instr_2 pc_2 rs1Data_2 rs2Data_2 aluUsesRs1_2 aluUsesRs2_2 forwardRs1_2 forwardRs2_2 memRes_3 rdData_4  
 
         readAddr_2 = execRes_2
@@ -161,14 +162,16 @@ pipeline fromInstructionMem fromDataMem = (theRegFile, next_pc_0, readAddr_2, wr
         -- Stage 3 (the word at address 'readAddr_3' is read from the data cache and is available for processing here)
         pc_3 = register 0 pc_2
         instr_3 = register 0 instr_2
+        effectiveRs2_3 = register 0 effectiveRs2_2
         regWriteEnable_3 = register False writesToRegFile_2
         isLoad_3 = load <$> instr_3
         isStore_3 = store <$> instr_3
         execRes_3 = register 0 execRes_2
 
         readAddr_3 = register 0 readAddr_2
-        writeValue_3 = execRes_3
-        writeEnable_3 = isStore_3
+        writeAddr_3 = execRes_3
+        writeValue_3 = effectiveRs2_3
+        writeEnable_3 = store <$> instr_3
 
         byteStart_3 = slice d1 d0 <$> readAddr_3
         byteCount_3 = getByteCount <$> (funct3 <$> instr_3)

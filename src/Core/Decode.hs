@@ -207,5 +207,5 @@ decodeMemOpcode instr
 usesAlu, usesRs1, usesRs2, usesRd :: XTYPE -> Bool
 usesAlu instr = iType instr || rType instr
 usesRs1 instr = jalR instr || branch instr || load instr || store instr || iType instr || rType instr
-usesRs2 instr = branch instr || store instr || rType instr
+usesRs2 instr = branch instr || rType instr  -- stores use rs2 but they also use immediate data for the offset. If we mark stores here, then rs2 will be used for the offset instead of the immediate data.
 usesRd  instr = lui instr || auipc instr || jal instr || jalR instr || load instr || iType instr || rType instr
