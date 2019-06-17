@@ -170,7 +170,7 @@ pipeline fromInstructionMem fromDataMem = (theRegFile, next_pc_0, readAddr_2, wr
 
         readAddr_3 = register 0 readAddr_2
         writeAddr_3 = execRes_3
-        writeValue_3 = effectiveRs2_3
+        writeValue_3 = getStoreData <$> fromDataMem <*> effectiveRs2_3 <*> byteStart_3 <*> byteCount_3
         writeEnable_3 = store <$> instr_3
 
         byteStart_3 = slice d1 d0 <$> readAddr_3
@@ -198,10 +198,28 @@ pipeline fromInstructionMem fromDataMem = (theRegFile, next_pc_0, readAddr_2, wr
             0b10 -> count == 4
             0b11 -> count == 4 || count == 2
 
-        getMemData datum unsigned start count = case count of
+        getStoreData datum write start count = case count of
+            1 -> alignByte
+            2 -> alignHalf
+            4 -> write
+            _ -> 0xDEADBABA
+            where
+                write16 = slice d15 d0 write
+                write8  = slice d7 d0 write
+                alignHalf = case start of
+                    0 -> slice d31 d16 datum ++# write16
+                    1 -> slice d31 d24 datum ++# write16 ++# slice d7 d0 datum
+                    2 -> write16 ++# slice d15 d0 datum
+                alignByte = case start of
+                    0 -> slice d31 d8 datum ++# write8
+                    1 -> slice d31 d16 datum ++# write8 ++# slice d7 d0 datum
+                    2 -> slice d31 d24 datum ++# write8 ++# slice d15 d0 datum
+                    3 -> write8 ++# slice d23 d0 datum   
+
+        getLoadData datum unsigned start count = case count of
             1 -> (bool signExtend zeroExtend isUnsigned) $ slice d31 d24 datum8
             2 -> (bool signExtend zeroExtend isUnsigned) $ slice d31 d16 datum16
-            4 ->                                           slice d31 d0 datum32
+            4 ->                                           datum32
             _ ->                                           0xDEADBEEF                    -- error, should never happen 
             where 
                 u x = unpack $ pack x :: XUnsigned
@@ -220,7 +238,7 @@ pipeline fromInstructionMem fromDataMem = (theRegFile, next_pc_0, readAddr_2, wr
                     0b10 -> 1 * 8
                     0b11 -> 0 * 0 :: BitVector 5
 
-        memRead_3 = getMemData <$> fromDataMem <*> isUnsigned_3 <*> byteStart_3 <*> byteCount_3 
+        memRead_3 = getLoadData <$> fromDataMem <*> isUnsigned_3 <*> byteStart_3 <*> byteCount_3 
         memRes_3 = mux isLoad_3 memRead_3 execRes_3   
 
         -- Stage 4

@@ -6,7 +6,7 @@ import Core.Definitions
 import Core.Pipeline
 
 import Out.Func
-import Out.Ld_forward
+import Out.St_hb
 
 import Data.Bool
 import Data.Maybe (catMaybes)
@@ -51,4 +51,4 @@ cpuHardware initialProg initialMem = output
                           (readReg <$> regFile <*> 9) :> (readReg <$> regFile <*> 10) :> Nil
 
 topEntity :: Clock System Source -> Reset System Asynchronous -> Signal System (Vec 10 XTYPE)
-topEntity clk rst = withClockReset clk rst $ cpuHardware (ld_forward_ICache ++ repeat 0) (ld_forward_DCache ++ repeat 0)
+topEntity clk rst = withClockReset clk rst $ cpuHardware (st_hb_ICache ++ repeat 0) (st_hb_DCache ++ repeat 0)

@@ -11,9 +11,4 @@ main:
 	lhu x3, 4(x2)
     addi x3, x3, 1
 
-	addi x4, x4, 1
-
-	sw x4, 0(x1)
-	lw x5, 0(x1)
-	
 halt:	j halt
