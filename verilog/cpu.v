@@ -3,12 +3,12 @@
 module main();
 
     // Toggle the reset line
+    reg reset_reg;
     initial begin
         reset_reg = 1;
         reset_reg = #1 0;
         // reset_reg = #2 1;            // ! RST is ACTIVE HIGH !!!
     end
-    reg reset_reg;
     wire reset = reset_reg;
     
     // Clock line

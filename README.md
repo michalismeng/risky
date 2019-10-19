@@ -4,7 +4,19 @@ A 32-bit risc-v processor implementation in [clash](https://clash-lang.org/).
 
 ## Features
 
-Encoding/Decoding of instructions of the RV32I specification.
+Implementation of RV32I specification
+
+5-Stage pipeline with forwarding
+
+Not implemented yet
+- fence / fence.I
+- ecall
+- ebreak
+- csr*
+
+Jumps (jal, jalr, branches) 
+- stall on decode to avoid fetching bad instruction
+- stall and resolve on execute
 
 ## How to install
 
@@ -24,7 +36,15 @@ stack exec -- clashi src/System.hs -isrc -odir obj -hidir obj
 
 ### Generate verilog
 ```
-stack exec -- clash src/System.hs -isrc --verilog -odir obj -hidir obj
+stack exec -- clash src/System.hs -i{src,test} --verilog -odir obj -hidir obj
+```
+
+### Generate waveforms (gtkwave)
+```
+stack exec -- clash src/System.hs -i{src,test} --verilog -odir obj -hidir obj
+iverilog verilog/cpu.v verilog/System/*.v -o verilog/cpu
+vvp verilog/cpu
+gtkwave verilog/dump.vcd
 ```
 
 ### Test Suite
