@@ -41,7 +41,7 @@ dependencies:
 library:
   source-dirs: 
   - src
-  - test
+  # - test
 
 # tests:
 #   spec:

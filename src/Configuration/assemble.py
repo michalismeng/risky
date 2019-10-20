@@ -15,7 +15,7 @@ def changeOrder (s):
 
 
 def haskellPrelude (sourceFile):
-    return "-- Auto-generated file. [Source = %s].\n-- Do not alter.\n\n{-# LANGUAGE NoImplicitPrelude, DataKinds, BinaryLiterals #-}\nmodule Program.Program where\n\nimport Clash.Prelude" % sourceFile
+    return "-- Auto-generated file. [Source = %s].\n-- Do not alter.\n\n{-# LANGUAGE NoImplicitPrelude, DataKinds, BinaryLiterals #-}\nmodule Configuration.Program where\n\nimport Clash.Prelude" % sourceFile
 
 def toHaskell (s):
     return "  (%s :: BitVector 32) :>" % s
@@ -23,11 +23,12 @@ def toHaskell (s):
 flatten = lambda l: [item for sublist in l for item in sublist]
 
 def formatSectionAsHaskell (section, name, maxLength = -1):
-    lines = section.splitlines()
+    lines = section.splitlines()                            # split lines
     lines = filter (lambda s: '0x' in s, lines)
     lines = map(lambda line: line.split(' '), lines)
+    lines = map(lambda line: list(filter(lambda s: s != "" and '.' not in s, line)), lines)
     lines = list(lines)
-    lines = map(lambda line: line[3:-1], lines)
+    lines = map(lambda line: line[1:], lines)
     sectionData = flatten (lines)
 
     if maxLength != -1:
@@ -44,10 +45,12 @@ if len(sys.argv) <= 1:
 
 in_file = sys.argv[1]
 temp = tempfile.NamedTemporaryFile()
+temp2 = tempfile.NamedTemporaryFile()
 
 os.system('riscv32-unknown-linux-gnu-as -o %s %s' % (temp.name, in_file))
-textSection = os.popen('riscv32-unknown-linux-gnu-readelf -x .text %s' % temp.name).read()
-dataSection = os.popen('riscv32-unknown-linux-gnu-readelf -x .data %s' % temp.name).read()
+os.system('riscv32-unknown-linux-gnu-ld -Ttext 0 -Tdata 1000 -o %s %s' % (temp2.name, temp.name))
+textSection = os.popen('riscv32-unknown-linux-gnu-readelf -x .text %s' % temp2.name).read()
+dataSection = os.popen('riscv32-unknown-linux-gnu-readelf -x .data %s' % temp2.name).read()
 
 textSectionHaskell = formatSectionAsHaskell(textSection, "instructionStream", 32)
 dataSectionHaskell = formatSectionAsHaskell(dataSection, "dataStream", 64)
@@ -58,3 +61,4 @@ with open("Program.hs", "w") as f:
     f.write(haskellProgram)
 
 temp.close()
+temp2.close()
