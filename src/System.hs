@@ -5,7 +5,8 @@ import Core.Decode
 import Core.Definitions
 import Core.Pipeline
 
-import Configuration.Program
+import Configuration.Generated.Program
+import Configuration.Generated.Materialize
 
 import Data.Bool
 import Data.Maybe (catMaybes)
@@ -28,8 +29,7 @@ firstCycleDef :: (HiddenClockReset dom sync gated, Default a) => Signal dom a ->
 firstCycleDef = firstCycleDef' def
 -----
 
-cpuHardware :: HiddenClockReset dom gated sync => Vec (2 ^ 5) (BitVector 32) -> Vec (2 ^ 6) (BitVector 32) -> Signal dom (Vec 10 XTYPE)
-cpuHardware initialProg initialMem = output
+cpuHardware (initialProg, initialMem) = output
     where
         instruction = firstCycleDef $ romPow2 initialProg (unpack . resize <$> next_pc_0)
 
@@ -50,4 +50,4 @@ cpuHardware initialProg initialMem = output
                           (readReg <$> regFile <*> 9) :> (readReg <$> regFile <*> 10) :> Nil
 
 topEntity :: Clock System Source -> Reset System Asynchronous -> Signal System (Vec 10 XTYPE)
-topEntity clk rst = withClockReset clk rst $ cpuHardware (instructionStream ++ repeat 0) (dataStream ++ repeat 0)
+topEntity clk rst = withClockReset clk rst $ cpuHardware $ materialize instructionStream dataStream

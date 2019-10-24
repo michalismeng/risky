@@ -2,7 +2,7 @@
 -- Do not alter.
 
 {-# LANGUAGE NoImplicitPrelude, DataKinds, BinaryLiterals #-}
-module Configuration.Program where
+module Configuration.Generated.Program where
 
 import Clash.Prelude
 

@@ -41,19 +41,3 @@ dependencies:
 library:
   source-dirs: 
   - src
-  # - test
-
-# tests:
-#   spec:
-#     main: test/Spec.hs
-#     source-dirs:
-#       - test
-#     dependencies:
-#       - hspec == 2.*
-#       - QuickCheck
-#       - temporary
-#       - mockery >= 0.3
-#       - interpolate
-#       - template-haskell
-#       - HUnit >= 1.6.0.0
-#     build-tools: hspec-discover

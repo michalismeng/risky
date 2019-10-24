@@ -15,7 +15,7 @@ def changeOrder (s):
 
 
 def haskellPrelude (sourceFile):
-    return "-- Auto-generated file. [Source = %s].\n-- Do not alter.\n\n{-# LANGUAGE NoImplicitPrelude, DataKinds, BinaryLiterals #-}\nmodule Configuration.Program where\n\nimport Clash.Prelude" % sourceFile
+    return "-- Auto-generated file. [Source = %s].\n-- Do not alter.\n\n{-# LANGUAGE NoImplicitPrelude, DataKinds, BinaryLiterals #-}\nmodule Configuration.Generated.Program where\n\nimport Clash.Prelude" % sourceFile
 
 def toHaskell (s):
     return "  (%s :: BitVector 32) :>" % s
@@ -57,7 +57,7 @@ dataSectionHaskell = formatSectionAsHaskell(dataSection, "dataStream", 64)
 
 haskellProgram = "%s\n\n%s\n\n%s" % (haskellPrelude (in_file), textSectionHaskell, dataSectionHaskell)
 
-with open("Program.hs", "w") as f:
+with open("Generated/Program.hs", "w") as f:
     f.write(haskellProgram)
 
 temp.close()
